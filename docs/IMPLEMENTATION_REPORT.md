@@ -33,16 +33,16 @@ derived from authenticated caller UID/certificate and validated registry records
 | Create | Support/capacity gates, start/unlock verification, scoped rollback |
 | Profile list | All types, parent, serial, running state, ownership and clone count |
 | Clone | User-app picker, install-existing per target, enabled/hidden/suspended/sandbox checks |
-| Launcher DoD | Separate identity per sibling, proxy probe, partial-success failure result |
-| Remove | Parent entry cleanup followed by target-only removal; retained errors on failure |
+| Launcher DoD | Native-first exact identity detection, exclusive NATIVE/PROXY modes, proxy probe, partial failure |
+| Remove | Owned proxy cleanup or verified native disappearance after target-only removal; pending failures retained |
 | Delete | Only recorded module-owned profile with current serial/type/parent validation |
 | Logs | Private rotating JSONL; WebUI table and fixed-path public export |
 | WebUI | Responsive themes, loading/results, confirmations, shared backend, support/update |
 | CLI | All requested commands plus launcher retry/reconcile and explicit recovery |
 | Compatibility | Runtime-detected hidden framework methods and advertised shell options |
-| OEM context | Resolved-HOME ZTE adapter only; OEM user ID never used as a generic target |
+| OEM context | Runtime profile classification, reviewed read-only HOME/cache contract in isolated adapter, no fixed target user ID |
 | Updates | Verified Next JSON contract, integer versionCode comparison, fixed HTTPS endpoint |
-| CI/release | Local checks pass; workflows ready; no remote run or publication claimed |
+| CI/release | SHA-gated manual publication; live release/update decision is in RELEASE_GATE.md |
 | Lifecycle | Actual Next install/reboot tested; updates preserve private registry/signing key |
 | Uninstall | Preserves profile/app data by design; cleanup instructions documented |
 | Dynamic status | Atomic module.prop description; final device count verified at 2/4, 0 clones |
@@ -53,8 +53,9 @@ derived from authenticated caller UID/certificate and validated registry records
 
 `LauncherApps`, `LauncherActivityInfo` and `UserHandle` provide user-scoped
 enumeration evidence. A privileged query cannot prove a different launcher's
-rendered UI. This release therefore uses managed proxy packages when native
-visibility cannot be established. Unlike pinned shortcuts, parent package entries
+rendered UI. This release selects NATIVE only with exact native visibility
+evidence and PROXY only after native absence is established. UNKNOWN remains
+partial and does not introduce a potential duplicate. Unlike pinned shortcuts, parent package entries
 can be removed reliably through PackageManager. Ordinary app entry placement and
 hidden-app preferences still belong to the launcher.
 
@@ -65,10 +66,12 @@ device is also tested at runtime, including an authenticated proxy probe.
 
 ## Results and remaining coverage
 
-30 host assertions, 3 bridge tests, shell/JavaScript/JSON/ZIP checks, real APK v2
+47 host assertions, 3 bridge tests, shell/JavaScript/JSON/ZIP checks, real APK v2
 signature verification, concurrent registry writes/recovery and mobile Chrome
-light/dark UI checks passed. Installed Android 16/API 36 testing passed A–G with
-two CLONE siblings and three distinct sandboxes. Additional ownership rejection,
+light/dark UI checks passed. Historical A–G passed with two CLONE siblings on
+NX769J, Android 16/API 36, RedMagicOS 11.0.8MR6, MiFavor versionCode 160000.
+The newer native-first binary has a separate release-gate execution record.
+Additional ownership rejection,
 missing targets/packages, stale profile cleanup, logs/export and unavailable
 update-endpoint handling passed. See TESTING.md for exact scope and evidence.
 
@@ -80,6 +83,5 @@ existing owner/OEM profiles are protected. Uninstall preservation is implemented
 and documented; no uninstall of the final module was performed.
 
 Artifact: `dist/Clone-App-Profile-v1.0.0.zip` with `.sha256` and `update.json`.
-The module remains installed; disposable test profiles/apps were cleaned up.
-The repository is prepared for a reviewed manual GitHub release. Until published,
-the fixed latest-release metadata URL is expected to return an update-check error.
+Final device cleanup, installed hash, remote/tag status and actual published
+update endpoint results are recorded in [RELEASE_GATE.md](RELEASE_GATE.md).

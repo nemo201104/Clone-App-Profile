@@ -7,6 +7,10 @@ on:
         type: boolean
         required: true
         default: false
+      expected_sha256:
+        description: SHA-256 of the ZIP that passed the recorded device gate
+        type: string
+        required: true
 permissions:
   contents: read
 jobs:
@@ -33,4 +37,13 @@ jobs:
       - name: Create reviewed release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v1.0.0 dist/* --target "$GITHUB_SHA" --title 'Clone App Profile v1.0.0' --notes-file CHANGELOG.md
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+        run: |
+          python3 tools/release_check.py --sha256 "$EXPECTED_SHA256"
+          # Never move an existing tag or replace assets on a published release.
+          refs=$(git ls-remote --tags origin refs/tags/v1.0.0)
+          if [ -n "$refs" ]; then
+            echo 'v1.0.0 already exists; inspect the release instead of overwriting it.' >&2
+            exit 1
+          fi
+          gh release create v1.0.0 dist/Clone-App-Profile-v1.0.0.zip dist/Clone-App-Profile-v1.0.0.zip.sha256 dist/update.json --target "$GITHUB_SHA" --title 'Clone App Profile v1.0.0' --notes-file CHANGELOG.md

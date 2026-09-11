@@ -22,16 +22,17 @@ const server = http.createServer((req, res) => {
         const profiles = [
           { userId: 0, serialNumber: 0, name: 'Owner', type: 'android.os.usertype.full.SYSTEM', parentUserId: -1, state: 'RUNNING_UNLOCKED', enabled: true, moduleManaged: false, clonedApps: 0 },
           { userId: 10, serialNumber: 42, name: 'Clone 1', type: 'android.os.usertype.profile.CLONE', parentUserId: 0, state: 'RUNNING_UNLOCKED', enabled: true, moduleManaged: true, clonedApps: 1 },
-          { userId: 11, serialNumber: 43, name: 'Clone 2', type: 'android.os.usertype.profile.CLONE', parentUserId: 0, state: 'RUNNING_UNLOCKED', enabled: true, moduleManaged: true, clonedApps: 0 }
+          { userId: 11, serialNumber: 43, name: 'OEM Clone', type: 'android.os.usertype.profile.CLONE', parentUserId: 0, state: 'RUNNING_UNLOCKED', enabled: true, moduleManaged: false, profileClassification: 'EXTERNAL_OEM', clonedApps: 1 }
         ];
-        const clone = { packageName:'com.example.app', appLabel:'Example <img src=x onerror=alert(1)>', targetUserId:10, targetSerial:42, state:'ACTIVE', packageCloned:'Success', launcherIntegration:'Failed', launcherEntryState:'FAILED', launcherError:'Broker unavailable' };
+        const clone = { packageName:'com.example.app', appLabel:'Example <img src=x onerror=alert(1)>', targetUserId:10, targetSerial:42, state:'ACTIVE', packageCloned:'Success', launcherIntegration:'Failed', launcherEntryState:'FAILED', launcherMode:'PROXY', profileClassification:'MODULE_MANAGED', launcherError:'Broker unavailable' };
+        const native = { ...clone, targetUserId:11, targetSerial:43, launcherMode:'NATIVE', profileClassification:'EXTERNAL_OEM', launcherIntegration:'Success', launcherEntryState:'READY_NATIVE', launcherError:'' };
         window.calls = [];
         window.ksu = { exec(command, options, callback) {
           const tokens = command.split(' ').slice(1), op = tokens[0]; window.calls.push(tokens);
           const details = {
             status: { used:3, max:4, cloned:1, android:'16', sdk:36, currentUser:0, kernelSU:true, cloneSupport:{ state:'SUPPORTED', canAddMoreProfiles:true }, profiles, pending:[] },
             apps:[{ packageName:'com.example.app', appLabel:'Example <img src=x onerror=alert(1)>' }],
-            clones:[clone], logs:[]
+            clones:[clone,native], logs:[]
           }[op] || {};
           const result = op === 'clone' ? { success:false, errorCode:'PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED', message:'Package cloned; launcher integration failed', details:{ packageCloned:'Success', launcherIntegration:'Failed', targetProfile:{userId:10,serialNumber:42}, launcherEntryState:'FAILED' } } : {success:true,errorCode:'SUCCESS',message:'Completed',details};
           setTimeout(() => window[callback](result.success ? 0 : 2, JSON.stringify(result), ''), 15);
@@ -49,9 +50,14 @@ const server = http.createServer((req, res) => {
       await page.evaluate(() => showResult({success:false,errorCode:'PACKAGE_NOT_FOUND',message:'Source package was removed',details:{}}, 'clone'));
       assert.match(await page.locator('#result-fields').textContent(), /Package clonedFailedLauncher integrationFailedTarget profileClone 1/);
       assert.match(await page.locator('#result-fields').textContent(), /Launcher entry stateNOT_CREATED/);
+      await page.evaluate(() => showResult({success:false,errorCode:'PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING',message:'Retry removal',details:{packageRemoved:true,launcherEntryState:'PENDING_REMOVAL'}}));
+      assert.match(await page.locator('#result-fields').textContent(), /Package\/profile removedtrueLauncher entry statePENDING_REMOVAL/);
+      assert.match(await page.locator('#clone-list').textContent(), /Launcher mode: PROXY · MODULE_MANAGED/);
+      assert.match(await page.locator('#clone-list').textContent(), /Launcher mode: NATIVE · EXTERNAL_OEM/);
+      assert.match(await page.locator('#target').textContent(), /OEM Clone · User 11 · EXTERNAL_OEM/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'mobile layout does not overflow');
       await page.locator('[data-page="profiles"]').click();
-      assert.equal(await page.locator('#profile-list .danger').count(), 2, 'only module-owned profiles deletable');
+      assert.equal(await page.locator('#profile-list .danger').count(), 1, 'external OEM profile cannot be deleted');
       await page.locator('#profile-list .danger').first().click(); await page.locator('#confirm button[value="cancel"]').click();
       assert.equal(await page.evaluate(() => calls.some(c => c[0] === 'profile-delete')), false, 'cancel never mutates');
       fs.mkdirSync('build/screenshots',{recursive:true}); await page.screenshot({path:`build/screenshots/webui-${colorScheme}.png`,fullPage:true});

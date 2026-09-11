@@ -14,6 +14,12 @@ select the correct parent HOME, unlock the parent, and use Retry launcher. Docto
 reports broker readiness. Retry never creates another app data sandbox or adopts
 an untracked package.
 
+`NATIVE_DETECTION_UNAVAILABLE` or `OEM_ADAPTER_REVIEW_REQUIRED` means native
+visibility cannot safely be established for the current HOME. Preserve the
+reported error and launcher version. Do not force proxy mode or add an APK hash
+without inspecting that launcher's actual presentation contract: this can bring
+back duplicate icons. Unknown visibility remains partial, even if the app exists.
+
 If SELinux blocks the authenticated socket, the operation remains partial. This
 release does not install broad SELinux rules, switch SELinux to permissive, grant
 root to a proxy or fall back to launching the owner's package.
@@ -50,10 +56,18 @@ identity is retained until target disappearance and launcher cleanup are verifie
 The launcher entry may already have been removed, so the row can show
 `REMOVING`/`REMOVED`. Reconciliation will not recreate an entry that is being
 removed. A reused user ID or package installation mismatch blocks the retry.
+Native removal can report `PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING` after the
+app is already gone. Let HOME refresh and retry the same action; do not clear or
+edit OEM data. Retry launcher is unavailable for REMOVING records. Reconcile
+reports this pending state but does not perform a new package removal on its own.
 
 ## Lost signing key / module uninstall
 
 Never generate a replacement key over registered proxies. Restore your private
 backup. Module uninstall preserves profiles, app data, registry and proxy entries;
 proxies fail closed while the broker is unavailable. Reinstall to manage them.
+Native entries continue to follow the OEM launcher's behavior independently of
+the module broker. Restoring an older registry may lose ownership of a proxy;
+`PROXY_RECOVERY_REQUIRED` then requires inspecting the private backup instead of
+silently deleting an unregistered package.
 For complete cleanup, use Remove/Delete before uninstalling the module.

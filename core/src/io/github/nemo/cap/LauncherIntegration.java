@@ -14,12 +14,44 @@ public final class LauncherIntegration {
     private final ProxyApk apk;
     private final File module;
     public LauncherIntegration(AndroidPlatform platform,Store store,File module) {this.platform=platform;this.store=store;this.module=module;this.apk=new ProxyApk(store.dir,module);}
+    private LauncherAdapter adapter(JSONObject home) {return ZteAdapter.matches(home)?new ZteAdapter():new GenericAndroidAdapter();}
     public JSONObject inspect(JSONObject clone) throws Exception {
         int parent=clone.getInt("sourceUserId"),target=clone.getInt("targetUserId");
         JSONObject home=platform.home(parent);
-        LauncherAdapter adapter=ZteAdapter.matches(home)?new ZteAdapter():new GenericAndroidAdapter();
+        LauncherAdapter adapter=adapter(home);
         return Json.obj("home",home,"adapter",adapter.inspect(platform,home,parent),
             "native",platform.launcherQuery(clone.getString("packageName"),target,parent));
+    }
+    public String profileClass(JSONObject profile,boolean managed) throws Exception {
+        if(managed)return "MODULE_MANAGED";
+        try {JSONObject home=platform.home(profile.getInt("parentUserId"));return adapter(home).externalProfileClass(platform,home,profile);}
+        catch(Exception e) {return "EXTERNAL_GENERIC";}
+    }
+    private JSONObject observe(JSONObject c,JSONObject home,boolean wait) throws Exception {
+        long until=System.nanoTime()+(wait?10_000_000_000L:2_000_000_000L);JSONObject result;
+        do {
+            result=adapter(home).nativeEntry(platform,home,c);
+            if("PRESENT".equals(result.getString("state")))return result;
+            if(!wait && "ABSENT".equals(result.getString("state")))return result;
+            if(System.nanoTime()<until)Thread.sleep(400);
+        } while(System.nanoTime()<until);
+        return result;
+    }
+    private void transition(JSONObject c,String mode) throws Exception {
+        String before=c.optString("launcherMode",c.has("proxyPackage")?"PROXY":"UNASSIGNED");
+        c.put("launcherMode",mode);
+        if(!mode.equals(before))store.log(c.getString("operationId"),"LAUNCHER_TRANSITION",c.getString("packageName"),c.getInt("targetUserId"),"SUCCESS",before+" -> "+mode);
+    }
+    public boolean verifyNativeRemoved(JSONObject c) throws Exception {
+        if(platform.user(c.getInt("sourceUserId"))==null)return true;
+        platform.identity(c.getInt("sourceUserId"),c.getLong("parentSerial"));
+        JSONObject home=platform.home(c.getInt("sourceUserId"));long until=System.nanoTime()+10_000_000_000L;
+        do {
+            JSONObject result=adapter(home).nativeEntry(platform,home,c);c.put("nativeRemovalEvidence",result);
+            if("ABSENT".equals(result.getString("state")))return true;
+            Thread.sleep(400);
+        } while(System.nanoTime()<until);
+        c.put("launcherEntryState","PENDING_REMOVAL").put("launcherIntegration","Failed");store.save();return false;
     }
     public void validateTarget(JSONObject c) throws Exception {
         JSONObject target=platform.identity(c.getInt("targetUserId"),c.getLong("targetSerial"));
@@ -47,7 +79,27 @@ public final class LauncherIntegration {
             c.put("packageVerification",platform.verifyClone(c.getString("packageName"),c.getInt("sourceUserId"),c.getInt("targetUserId")));
             platform.component(c.getString("packageName"),c.getInt("targetUserId"));
             JSONObject capabilities=inspect(c);c.put("launcherCapabilities",capabilities);
+            JSONObject home=capabilities.getJSONObject("home");
+            JSONObject nativeEntry=observe(c,home,forceProbe || !c.has("launcherMode"));c.put("nativeEvidence",nativeEntry);
+            validateTarget(c);validatePackageOwnership(c); // Recheck after bounded asynchronous OEM processing.
+            JSONObject target=platform.requireUser(c.getInt("targetUserId"));
+            JSONObject owned=Json.find(store.data.getJSONArray("profiles"),"userId",target.getInt("userId"));
+            boolean managed=owned!=null && owned.getLong("serialNumber")==target.getLong("serialNumber");
+            c.put("profileClassification",profileClass(target,managed));
+            Failure.require(!"UNKNOWN".equals(nativeEntry.getString("state")),"NATIVE_DETECTION_UNAVAILABLE","Cannot safely decide native versus proxy: "+nativeEntry.optString("error",nativeEntry.optString("reason")));
+            if("PRESENT".equals(nativeEntry.getString("state"))) {
+                c.put("launcherEntryState","TRANSITIONING_TO_NATIVE");store.save();
+                cleanup(c);
+                Failure.require(platform.app(ProxyApk.PREFIX+c.getString("id"),c.getInt("sourceUserId"))==null,"PROXY_RECOVERY_REQUIRED","An unregistered proxy remains; inspect restored ownership before claiming native success");
+                for(String key:new String[]{"proxyPackage","proxyCertificate","proxyLabel","proxyContentFingerprint","probeNonce","probeStarted"})c.remove(key);
+                transition(c,"NATIVE");
+                c.put("launcherEntryState","READY_NATIVE").put("launcherIntegration","Success").put("launcherEvidence",nativeEntry)
+                    .put("homeFingerprint",Json.hash(home.toString())).put("launcherCheckedAt",System.currentTimeMillis()).put("state","ACTIVE");
+                c.remove("launcherError");c.remove("nextLauncherRetry");store.save();return true;
+            }
             Failure.require(capabilities.getJSONObject("adapter").getBoolean("managedProxySupported"),"LAUNCHER_UNSUPPORTED","No safe launcher adapter available");
+            boolean switchingToProxy=!"PROXY".equals(c.optString("launcherMode"));
+            transition(c,"PROXY");if(switchingToProxy || !c.has("proxyPackage"))c.put("launcherEntryState","PENDING");store.save();
             Broker.ping();
             String pkg=ProxyApk.PREFIX+c.getString("id");int parent=c.getInt("sourceUserId");
             ApplicationInfo existing=platform.app(pkg,parent);
@@ -90,9 +142,10 @@ public final class LauncherIntegration {
                 Failure.require(c.getString("id").equals(result.getString("id")) && nonce.equals(result.getString("nonce")),"PROXY_TRANSPORT_FAILED","Invalid probe acknowledgement");
                 Files.delete(proof.toPath());c.remove("probeNonce");c.remove("probeStarted");
             }
+            validateTarget(c);validatePackageOwnership(c);
             c.put("homeFingerprint",fingerprint).put("launcherEntryState","READY_PROXY").put("launcherIntegration","Success")
                 .put("launcherEvidence",enumeration).put("launcherCheckedAt",System.currentTimeMillis()).put("state","ACTIVE");
-            c.remove("launcherError");store.save();return true;
+            c.remove("launcherError");c.remove("nextLauncherRetry");store.save();return true;
         } catch(Exception | LinkageError e) {
             c.put("launcherEntryState","FAILED").put("launcherIntegration","Failed").put("launcherError",e.toString());
             c.put("nextLauncherRetry",System.currentTimeMillis()+300000);

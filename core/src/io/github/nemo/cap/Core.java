@@ -23,13 +23,14 @@ public final class Core {
         for(int i=0;i<all.length();i++) {
             JSONObject u=all.getJSONObject(i),r=Json.find(s.data.getJSONArray("profiles"),"userId",u.getInt("userId"));int count=0;
             JSONArray clones=s.data.getJSONArray("clones");
-            for(int j=0;j<clones.length();j++)if(clones.getJSONObject(j).getLong("targetSerial")==u.getLong("serialNumber"))count++;
+            for(int j=0;j<clones.length();j++)if(clones.getJSONObject(j).getLong("targetSerial")==u.getLong("serialNumber") && !clones.getJSONObject(j).optBoolean("packageRemoved"))count++;
             u.put("moduleManaged",r!=null && r.getLong("serialNumber")==u.getLong("serialNumber")).put("clonedApps",count);
+            if(AndroidPlatform.CLONE.equals(u.getString("type")))u.put("profileClassification",launcher.profileClass(u,u.getBoolean("moduleManaged")));
         }return all;
     }
     private JSONObject status() throws Exception {
         JSONArray all=profiles();int max=p.maxUsers(),current=p.currentUser(),count=0;
-        JSONArray clones=s.data.getJSONArray("clones");for(int i=0;i<clones.length();i++)if(!"MISSING".equals(clones.getJSONObject(i).optString("state")))count++;
+        JSONArray clones=s.data.getJSONArray("clones");for(int i=0;i<clones.length();i++)if(!"MISSING".equals(clones.getJSONObject(i).optString("state")) && !clones.getJSONObject(i).optBoolean("packageRemoved"))count++;
         return Json.obj("used",all.length(),"max",max,"cloned",count,"description","Profile: "+all.length()+"/"+max+" | Cloned: "+count,
             "android",Build.VERSION.RELEASE,"sdk",Build.VERSION.SDK_INT,"currentUser",current,"cloneSupport",p.support(current),
             "profiles",all,"pending",s.data.getJSONArray("pending"),"kernelSU",new File("/data/adb/ksu").isDirectory(),"moduleVersion","v1.0.0");
@@ -165,7 +166,7 @@ public final class Core {
     private JSONObject cloneResult(JSONObject c,boolean ready) throws Exception {
         return Json.obj("operationStatus",ready?"SUCCESS":"PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED","packageCloned",c.optString("packageCloned","Success"),
             "launcherIntegration",ready?"Success":"Failed","targetProfile",Json.obj("userId",c.getInt("targetUserId"),"serialNumber",c.getLong("targetSerial")),
-            "launcherEntryState",c.getString("launcherEntryState"),"clone",c);
+            "launcherEntryState",c.getString("launcherEntryState"),"launcherMode",c.optString("launcherMode","UNASSIGNED"),"clone",c);
     }
     private JSONObject removeClone(String pkg,int id) throws Exception {
         JSONObject c=managedClone(pkg,id);c.put("state","REMOVING");s.save();
@@ -175,6 +176,9 @@ public final class Core {
             AndroidPlatform.run(45,"/system/bin/pm","uninstall","--user",Integer.toString(id),pkg);
             Failure.require(p.app(pkg,id)==null,"PACKAGE_REMOVE_FAILED","Package remains installed in target");
         }
+        c.put("packageRemoved",true);s.save();
+        if(!launcher.verifyNativeRemoved(c))return Json.obj("operationStatus","PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING","packageRemoved",true,
+            "launcherEntryState","PENDING_REMOVAL","targetUserId",id,"packageName",pkg,"message","Package removed; HOME entry cleanup is still pending. Retry removal.");
         Json.remove(s.data.getJSONArray("clones"),c);s.save();return Json.obj("removed",true,"targetUserId",id,"packageName",pkg);
     }
     private JSONObject recoverPending(String operationId) throws Exception {
@@ -208,6 +212,11 @@ public final class Core {
             if(c.getInt("targetUserId")==id && c.getLong("targetSerial")==profile.getLong("serialNumber")) {c.put("state","REMOVING");s.save();launcher.cleanup(c);}
         }
         if(p.user(id)!=null)deleteUser(id,profile.getLong("serialNumber"));
+        for(int i=0;i<clones.length();i++) {
+            JSONObject c=clones.getJSONObject(i);
+            if(c.getInt("targetUserId")==id && c.getLong("targetSerial")==profile.getLong("serialNumber") && !launcher.verifyNativeRemoved(c))
+                return Json.obj("operationStatus","PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING","profileRemoved",true,"targetUserId",id,"launcherEntryState","PENDING_REMOVAL");
+        }
         for(int i=clones.length()-1;i>=0;i--)if(clones.getJSONObject(i).getInt("targetUserId")==id && clones.getJSONObject(i).getLong("targetSerial")==profile.getLong("serialNumber"))clones.remove(i);
         Json.remove(s.data.getJSONArray("profiles"),profile);s.save();return Json.obj("removed",true,"targetUserId",id);
     }
@@ -220,9 +229,15 @@ public final class Core {
     }
     private JSONObject reconcile() throws Exception {
         JSONArray rows=s.data.getJSONArray("clones"),results=new JSONArray();
-        boolean partial=false;
+        boolean partial=false,removalPending=false;
         for(int i=0;i<rows.length();i++) {
             JSONObject c=rows.getJSONObject(i);
+            if("REMOVING".equals(c.optString("state"))) {
+                removalPending=true;
+                results.put(Json.obj("id",c.getString("id"),"state","REMOVING","launcherEntryState",c.optString("launcherEntryState"),
+                    "operationStatus","PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING","message","Retry Remove Cloned or Delete Profile to finish the recorded removal."));
+                continue;
+            }
             if(!"ACTIVE".equals(c.optString("state")))continue;
             try {
                 JSONObject current=p.user(c.getInt("targetUserId"));
@@ -236,7 +251,7 @@ public final class Core {
                 boolean ready=launcher.ensure(c,false);partial|=!ready;results.put(cloneResult(c,ready));
             } catch(Exception e) {partial=true;c.put("launcherEntryState","FAILED").put("launcherIntegration","Failed").put("launcherError",e.toString());s.save();results.put(Json.obj("id",c.getString("id"),"error",e.toString()));}
         }
-        metadata();return Json.obj("operationStatus",partial?"PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED":"SUCCESS","results",results);
+        metadata();return Json.obj("operationStatus",partial?"PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED":removalPending?"PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING":"SUCCESS","results",results);
     }
     private JSONArray logs() throws Exception {
         JSONArray out=new JSONArray();File file=new File(s.dir,"events.jsonl");
@@ -248,9 +263,7 @@ public final class Core {
             Failure.require(connection.getResponseCode()==200,"UPDATE_CHECK_FAILED","Update metadata unavailable (HTTP "+connection.getResponseCode()+")");
             ByteArrayOutputStream buffer=new ByteArrayOutputStream();try(InputStream in=connection.getInputStream()) {byte[] b=new byte[1024];int n;while((n=in.read(b))!=-1) {Failure.require(buffer.size()+n<=65536,"INVALID_UPDATE_METADATA","Metadata too large");buffer.write(b,0,n);}}
             JSONObject data=new JSONObject(buffer.toString("UTF-8"));
-            Failure.require(data.get("versionCode") instanceof Integer && data.getInt("versionCode")>0 && data.getString("version").matches("v?[0-9]+\\.[0-9]+\\.[0-9]+")
-                && data.getString("zipUrl").startsWith("https://github.com/nemo201104/Clone-App-Profile/releases/download/") && data.getString("changelog").startsWith("https://"),"INVALID_UPDATE_METADATA","Invalid update contract");
-            return Json.obj("state",data.getInt("versionCode")>10000?"UPDATE_AVAILABLE":"UP_TO_DATE","metadata",data);
+            return UpdateMetadata.evaluate(data,UpdateMetadata.installedVersion(module));
         } finally {connection.disconnect();}
     }
     public JSONObject execute(String[] args) throws Exception {
@@ -271,7 +284,9 @@ public final class Core {
             case "profile-delete":arity(args,2);details=deleteProfile(Json.user(args[1]));mutates=true;break;
             case "clone":arity(args,3);details=cloneApp(Json.pkg(args[1]),Json.user(args[2]));mutates=true;break;
             case "clone-remove":arity(args,3);details=removeClone(Json.pkg(args[1]),Json.user(args[2]));mutates=true;break;
-            case "launcher-retry":arity(args,3);JSONObject c=managedClone(Json.pkg(args[1]),Json.user(args[2]));details=cloneResult(c,launcher.ensure(c,true));mutates=true;break;
+            case "launcher-retry":arity(args,3);JSONObject c=managedClone(Json.pkg(args[1]),Json.user(args[2]));
+                Failure.require("ACTIVE".equals(c.optString("state")),"RECOVERY_REQUIRED","Finish pending removal before retrying launcher integration");
+                details=cloneResult(c,launcher.ensure(c,true));mutates=true;break;
             case "reconcile":details=reconcile();mutates=true;break;
             case "update-check":
                 try {details=update();}
@@ -292,10 +307,11 @@ public final class Core {
             if(args.length>1 && args[args.length-1].matches("[0-9]{1,9}"))logUser=Integer.parseInt(args[args.length-1]);
             if(cmd.equals("profile-create"))logUser=((JSONObject)details).getInt("userId");
             String action=cmd.equals("clone")?"CLONE_APP":cmd.equals("clone-remove")?"REMOVE_CLONED":cmd.toUpperCase(Locale.ROOT).replace('-','_');
-            s.log(op,action,args.length==3?args[1]:"",logUser,partial?"PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED":"SUCCESS",cmd);
+            s.log(op,action,args.length==3?args[1]:"",logUser,partial?((JSONObject)details).getString("operationStatus"):"SUCCESS",cmd);
             try{metadata();}catch(Exception e){s.log(op,"ERROR","",-1,"STATUS_UPDATE_FAILED",e.toString());}
         }
-        return Json.obj("success",!partial,"errorCode",partial?"PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED":"SUCCESS","message",partial?"Package cloned; launcher integration failed":"Completed","details",details,"operationId",op);
+        String resultCode=partial?((JSONObject)details).getString("operationStatus"):"SUCCESS";
+        return Json.obj("success",!partial,"errorCode",resultCode,"message",partial?((JSONObject)details).optString("message",resultCode):"Completed","details",details,"operationId",op);
     }
     private static void arity(String[] args,int length)throws Failure {Failure.require(args.length==length,"INVALID_ARGUMENT","Invalid argument count");}
     public static void main(String[] argv) {

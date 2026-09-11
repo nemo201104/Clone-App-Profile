@@ -1,7 +1,9 @@
 # Compatibility and verified contracts
 
-Research date: 2026-09-11. Support is capability based, API 31–37 (Android
-12–17). This is a testable implementation, not certification for every ROM.
+Research refreshed: 2026-09-11. Implemented API range is 31–37 (Android 12–17),
+subject to runtime capability checks. Verified device behavior is limited to
+NX769J, Android 16/API 36, RedMagicOS 11.0.8MR6, HOME
+`com.zte.mifavor.launcher` versionCode 160000.
 
 ## Authoritative sources
 
@@ -35,6 +37,8 @@ Research date: 2026-09-11. Support is capability based, API 31–37 (Android
   [KernelSU-Next source](https://github.com/KernelSU-Next/KernelSU-Next/tree/b93da6492492eee898da06828df86f8a3d5354be):
   module.prop, customize.sh, service.sh, uninstall.sh, webroot/index.html.
   Next's ModuleViewModel reads version, integer versionCode, zipUrl, changelog.
+  Its Module screen fetches the changelog URL as text and renders Markdown;
+  update.json therefore points to the tagged raw CHANGELOG.md, not an HTML page.
   Atomic description replacement preserves all other module.prop fields.
   The WebUI bridge and optional getPackagesIcons were checked against Next's
   [API document](https://github.com/KernelSU-Next/KernelSU-Next/blob/b93da6492492eee898da06828df86f8a3d5354be/docs/WebUi_Next/API_DOC.md)
@@ -47,10 +51,17 @@ Research date: 2026-09-11. Support is capability based, API 31–37 (Android
 ## Launcher policy
 
 Generic Clone Core → LauncherIntegration → GenericAndroidAdapter or ZteAdapter.
-The home activity is resolved for the parent at runtime. Native enumeration is
-recorded as evidence but never equated to visible launcher integration. Until an
-adapter can prove native visibility and identity, the layer selects the managed
-proxy fallback. Each proxy is an ordinary MAIN/LAUNCHER package installed **only
+The home activity is resolved for the parent at runtime. A positive privileged
+LauncherApps query alone does not prove HOME visibility. The adapter reports
+`PRESENT`, `ABSENT` or `UNKNOWN` for the exact package + live target serial.
+PRESENT selects NATIVE and removes the owned proxy; ABSENT may select PROXY after
+capability checks; UNKNOWN returns partial failure without creating a duplicate.
+Initial/explicit retries allow a 10-second observation window for OEM refresh.
+Reconciliation rechecks native visibility and transitions modes idempotently.
+The generic public-API adapter can establish query absence, but cannot assert a
+positive HOME presentation; a positive query without a reviewed launcher adapter
+therefore remains UNKNOWN. This is a deliberate unverified compatibility limit.
+Each proxy is an ordinary MAIN/LAUNCHER package installed **only
 in the parent** with the cloned app's icon and a profile-specific label. Package
 identity hashes package name, parent serial and target serial. There is no limit
 of one sibling in core.
@@ -67,18 +78,34 @@ parent apps still needs device verification. We do not patch its database or APK
 
 ## REDMAGIC / ZTE adapter
 
-Selected only by the resolved home package `com.zte.mifavor.launcher` and runtime
-package/provider inspection. `com.zte.mifavor.launcher.quickstep.taskprovider` and
-`com.zte.cn.doubleapp` are observations, not writable API contracts. Canonical
-`user_999` special handling belongs only to this adapter's diagnostics. No user
-identifier is substituted or inferred from it. This release never patches OEM
-APKs or writes OEM launcher databases.
+Selected by resolved HOME identity, without model/brand checks in generic core.
+`com.zte.mifavor.launcher.quickstep.taskprovider` and `com.zte.cn.doubleapp` are
+runtime observations, not writable API contracts. Numeric user IDs are never
+substituted into target selection.
 
-Read-only device observation: API 36, home package above, 2 existing users,
-runtime maximum 4. This observation is not a passed clone/launcher acceptance
-test. See TESTING.md for actual execution records and remaining device checks.
+The inspected MiFavor AllAppsStore dump contains hidden sibling rows as well as
+visible apps. Consequently, raw model membership is insufficient. The adapter
+uses the inspected personal-drawer OEM badge predicate, joins component/flags to
+the read-only icon cache's profile **serial**, and validates live UserManager
+metadata and target LauncherActivityInfo. Stale cache rows never establish app
+visibility. Truncated dumps, ambiguous identity, missing cache, altered APK or
+changed formats produce UNKNOWN. Only this reviewed launcher APK is accepted:
+SHA-256 `02aca1d5d77eb193908ddf10c66a413c04160c106ffa26fa03bbd43999861310`.
+An OEM update requires reviewing its actual predicate/schema before adding its
+digest; changing the allowlist alone is not a compatibility fix.
 
-Subsequent installed-module testing on that device passed the A–G matrix,
-including actual icon taps, reboot, cache-only clearing, HOME restart and entry
-reconstruction. That result applies to this tested launcher/ROM and the separate
-permission-free fixture; it does not certify other launchers or Android versions.
+SQLite is opened read-only under the HOME ApplicationInfo data directory. No
+launcher/OEM database, clone service metadata or system APK is written or patched.
+The framework itself performs its ordinary package/model/cache updates.
+
+| Platform/capability | Status |
+|---|---|
+| NX769J / Android 16 API 36 / RedMagicOS 11.0.8MR6 / MiFavor 160000, inspected APK above | Device verified; see TESTING.md for each run |
+| Android 12/12L/13/14/15/17 | Implemented gates/APIs; device behavior unverified |
+| Other launchers, other MiFavor APK builds | Unverified; unknown native visibility blocks success |
+| Arbitrary apps, signature rotation, every crash boundary, future releases | Unverified |
+
+Earlier `pm clear --cache-only` returned Success on the recorded MiFavor device.
+That demonstrates the observed command result and subsequent launcher behavior;
+it is not proof of a full model/database rebuild or a generic cross-version
+launcher-cache contract. The module itself never clears launcher cache or data.

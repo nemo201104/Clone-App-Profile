@@ -11,6 +11,13 @@ activity and parent launcher entry are ready.** An installed package with failed
 launcher integration returns `PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED` and
 `success: false`. Retry launcher integration from My Clones.
 
+Launcher integration is native-first: a verified native entry records `NATIVE`
+and removes any owned proxy for that identity. Only verified native absence may
+select `PROXY`; ambiguous visibility returns partial success. Profiles are
+classified from runtime metadata and ownership as `MODULE_MANAGED`, `EXTERNAL_OEM`
+or `EXTERNAL_GENERIC`. Selecting an external profile owns only the newly cloned
+app; it never makes that profile deletable by this module.
+
 The launcher fallback is a small, separately signed proxy package per
 package/profile identity. It displays the app icon with a profile-number badge and a profile-specific label
 in the parent's launcher and opens the exact target instance through an
@@ -39,9 +46,12 @@ hidden-app settings and app drawer presentation belong to the launcher. See
 relying on an untested launcher. Screenshots: reserved for verified device/WebUI
 captures; no illustrative screenshots are presented as device evidence.
 
-Verified on the connected Android 16/API 36 REDMAGIC test device: actual
-KernelSU-Next installation/WebUI, two sibling clone entries, real icon taps to
-separate sandboxes, reboot, launcher restart/cache and scoped cleanup passed.
+Verified platform: **NX769J, Android 16/API 36, RedMagicOS 11.0.8MR6,
+`com.zte.mifavor.launcher` versionCode 160000**. Earlier A–G testing covered two
+managed siblings on this device. The native-first release gate separately checks
+owner + OEM native clone + managed proxy coexistence. Other Android versions and
+launchers remain unverified; the inspected private OEM visibility contract is
+restricted to a reviewed launcher APK digest. An unknown contract fails explicitly.
 See the [execution record](docs/TESTING.md) and
 [implementation report](docs/IMPLEMENTATION_REPORT.md) for the limits of this result.
 
@@ -91,7 +101,8 @@ checker downloads a checksum-pinned host-only JSON library from Maven Central.
 
 GitHub Actions validates and builds artifacts for pushes/PRs. Publishing is a
 separate manually dispatched workflow, disabled unless its publish input is
-selected. Updates use KernelSU-Next's `updateJson` contract and integer
+selected and its rebuilt ZIP matches the supplied device-reviewed SHA-256.
+Updates use KernelSU-Next's `updateJson` contract and integer
 `versionCode`. Until the first release is actually published, Check Update
 reports metadata unavailable. No GitHub token is embedded.
 
@@ -106,8 +117,12 @@ storage; a ROM may still share contacts/media according to its clone policies.
 
 Remove Cloned and Delete Profile are destructive and show confirmation in WebUI.
 They remove managed launcher proxies before removing the corresponding data.
+Native entries disappear through per-user PackageManager removal and launcher
+refresh; if bounded verification is incomplete, the record remains
+`PENDING_REMOVAL` with a partial result. Retry the same removal to finish.
 Uninstalling or disabling the module preserves profiles, app data, proxy packages
-and registry. Proxy launches then fail closed. For complete cleanup, remove your
+and registry. Proxy launches then fail closed. OEM native entries remain under
+the OEM launcher's control and do not require the broker. For complete cleanup, remove your
 clones/profiles through WebUI **before** uninstalling; reinstalling restores the
 management path. Updates preserve the registry and signing key.
 

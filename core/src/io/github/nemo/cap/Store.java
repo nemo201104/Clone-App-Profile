@@ -60,6 +60,9 @@ public final class Store implements AutoCloseable {
         for(int i=0;i<c.length();i++) {
             JSONObject r=c.getJSONObject(i); String id=Json.identity(r.getString("packageName"),r.getLong("parentSerial"),r.getLong("targetSerial"));
             Failure.require(r.getBoolean("managedByModule") && id.equals(r.getString("id")) && clones.add(id),"REGISTRY_CORRUPT","Invalid clone identity");
+            String mode=r.optString("launcherMode","");
+            Failure.require(mode.isEmpty() || mode.equals("NATIVE") || mode.equals("PROXY"),"REGISTRY_CORRUPT","Unknown launcher mode");
+            Failure.require(!mode.equals("NATIVE") || !r.has("proxyPackage"),"REGISTRY_CORRUPT","Native record must not retain a proxy identity");
         }
     }
     public void save() throws Exception {

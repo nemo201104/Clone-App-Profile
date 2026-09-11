@@ -5,11 +5,16 @@ function node(tag, text, className) { const n = document.createElement(tag); if 
 function empty(container, text) { container.replaceChildren(node('p', text, 'muted empty')); }
 function showResult(r, operation) {
   $('result').hidden = false; $('result').classList.toggle('error', !r.success);
-  $('result-title').textContent = r.errorCode === 'PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED' ? 'Clone chưa hoàn tất — launcher cần xử lý' : r.success ? 'Operation hoàn tất' : 'Operation thất bại';
+  $('result-title').textContent = r.errorCode === 'PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED' ? 'Clone chưa hoàn tất — launcher cần xử lý' : r.errorCode === 'PARTIAL_SUCCESS_LAUNCHER_REMOVAL_PENDING' ? 'Xóa chưa hoàn tất — launcher đang cập nhật' : r.success ? 'Operation hoàn tất' : 'Operation thất bại';
   const details = r.details || {}; $('result-fields').replaceChildren();
   if (operation === 'clone' || operation === 'launcher-retry' || details.packageCloned !== undefined || r.errorCode === 'PACKAGE_INSTALL_FAILED') {
-    const rows = [['Package cloned', details.packageCloned || 'Failed'], ['Launcher integration', details.launcherIntegration || 'Failed'], ['Target profile', details.targetProfile ? `User ${details.targetProfile.userId} · serial ${details.targetProfile.serialNumber}` : $('target').selectedOptions[0]?.textContent || '—'], ['Launcher entry state', details.launcherEntryState || 'NOT_CREATED']];
+    const rows = [['Package cloned', details.packageCloned || 'Failed'], ['Launcher integration', details.launcherIntegration || 'Failed'], ['Target profile', details.targetProfile ? `User ${details.targetProfile.userId} · serial ${details.targetProfile.serialNumber}` : $('target').selectedOptions[0]?.textContent || '—'], ['Launcher entry state', details.launcherEntryState || 'NOT_CREATED'], ['Launcher mode', details.launcherMode || 'UNASSIGNED']];
     for (const [label, value] of rows) { const row = node('div', undefined, 'result-row'); row.append(node('span', label), node('strong', value)); $('result-fields').append(row); }
+  }
+  if (details.packageRemoved !== undefined || details.profileRemoved !== undefined) {
+    for (const [label, value] of [['Package/profile removed', String(details.packageRemoved || details.profileRemoved)], ['Launcher entry state', details.launcherEntryState || 'REMOVED']]) {
+      const row = node('div', undefined, 'result-row'); row.append(node('span', label), node('strong', value)); $('result-fields').append(row);
+    }
   }
   $('result-fields').append(node('p', r.message)); $('result-json').textContent = JSON.stringify(r, null, 2);
   $('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -44,8 +49,9 @@ function renderProfiles() {
   $('profile-list').replaceChildren();
   for (const p of state.profiles) {
     const short = p.type.replace('android.os.usertype.', '');
-    if (p.type === 'android.os.usertype.profile.CLONE' && p.parentUserId === state.currentUser && p.enabled && !p.partial) { const option = node('option', `${p.name} · User ${p.userId} · ${p.moduleManaged ? 'Module managed' : 'External'}`); option.value = p.userId; $('target').append(option); }
+    if (p.type === 'android.os.usertype.profile.CLONE' && p.parentUserId === state.currentUser && p.enabled && !p.partial) { const option = node('option', `${p.name} · User ${p.userId} · ${p.profileClassification || (p.moduleManaged ? 'MODULE_MANAGED' : 'EXTERNAL_GENERIC')}`); option.value = p.userId; $('target').append(option); }
     const card = node('article', undefined, 'item-card'); card.append(node('h3', p.name), node('p', `${short} · User ${p.userId} · serial ${p.serialNumber}`), node('p', `Parent: ${p.parentUserId < 0 ? '—' : p.parentUserId} · ${p.state}`), node('p', `Module Managed: ${p.moduleManaged ? 'Yes' : 'No'} · Cloned: ${p.clonedApps}`));
+    if (p.profileClassification) card.append(node('p', p.profileClassification));
     if (p.moduleManaged) { const button = node('button', 'Delete Profile', 'danger'); button.onclick = async () => { if (await confirmAction('Delete Profile', `Xóa ${p.name} (user ${p.userId}, ${short}), ${p.clonedApps} clones và toàn bộ data trong profile?`)) await operate('profile-delete', p.userId); }; card.append(button); }
     $('profile-list').append(card);
   }
@@ -54,12 +60,15 @@ function renderProfiles() {
 function renderClones() {
   $('clone-list').replaceChildren();
   for (const c of state.clones) {
-    const card = node('article', undefined, 'item-card');card.append(node('h3', c.appLabel), node('p', c.packageName), node('p', `Target: ${c.targetUserId} · serial ${c.targetSerial} · ${c.state}`), node('p', `Package cloned: ${c.packageCloned || 'Success'}`), node('p', `Launcher integration: ${c.launcherIntegration || 'Failed'} · ${c.launcherEntryState}`));
+    const card = node('article', undefined, 'item-card');card.append(node('h3', c.appLabel), node('p', c.packageName), node('p', `Target: ${c.targetUserId} · serial ${c.targetSerial} · ${c.state}`), node('p', `Package cloned: ${c.packageRemoved ? 'Removed' : c.packageCloned || 'Success'}`), node('p', `Launcher integration: ${c.launcherIntegration || 'Failed'} · ${c.launcherEntryState}`));
     if (c.proxyLabel) card.append(node('p', `Launcher: ${c.proxyLabel}`));
+    card.append(node('p', `Launcher mode: ${c.launcherMode || 'UNASSIGNED'} · ${c.profileClassification || 'EXTERNAL_GENERIC'}`));
     if (c.launcherError) card.append(node('p', c.launcherError, 'error-text'));
     const retry = node('button', 'Retry launcher'); retry.onclick = () => operate('launcher-retry', c.packageName, c.targetUserId);
     const remove = node('button', 'Remove Cloned', 'danger'); remove.onclick = async () => { if (await confirmAction('Remove Cloned', `Gỡ ${c.appLabel} khỏi profile ${c.targetUserId}, xóa sandbox và launcher entry tương ứng?`)) await operate('clone-remove', c.packageName, c.targetUserId); };
-    card.append(retry, remove);$('clone-list').append(card);
+    if (c.state === 'ACTIVE') card.append(retry);
+    if (c.state === 'REMOVING') card.append(node('p', 'Chọn Remove Cloned hoặc Delete Profile để hoàn tất cleanup đang chờ.'));
+    card.append(remove);$('clone-list').append(card);
   }
   if (!state.clones.length) empty($('clone-list'), 'Chưa có clone do module quản lý.');
 }

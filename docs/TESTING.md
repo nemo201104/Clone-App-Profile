@@ -15,7 +15,10 @@ resolved HOME/version and actual profile serials for each device run.
 * Two generated proxy APKs with distinct identities, Unicode manifest label,
   preserved icon, real APK v2 signature verification and persistent signer.
 * ZIP root layout, metadata JSON/version contract, expected files, and isolation
-  of OEM identifiers from generic Java core (30 Java assertions plus static checks).
+  of OEM identifiers from generic Java core (47 Java assertions plus static checks).
+* Native model completeness, exact live-serial joins, hidden sibling rows, stale
+  cache, ambiguous identities, legacy mode migration and the NATIVE/proxy
+  exclusivity invariant; installed-version update comparison and invalid URLs.
 
 The build is repeated when implementation changes. Unit tests use temporary
 host storage and cannot alter Android users. Generated APKs/fixture/keys are
@@ -61,7 +64,13 @@ they establish routing, not a physical icon tap. Do not mark visual A/B complete
 from that result alone. Reboot with a **staged-only** module is not an F test:
 install the ZIP through KernelSU-Next so the boot service actually runs.
 
-## Execution record, 2026-09-11
+## Historical A–G execution record, 2026-09-11, before native-first changes
+
+This section records the initial implementation, not a claim that the newer
+native-first binary repeated every old test. All device results below apply only
+to **NX769J / Android 16 API 36 / RedMagicOS 11.0.8MR6 /
+com.zte.mifavor.launcher versionCode 160000**. The release-gate run is recorded
+separately in RELEASE_GATE.md.
 
 * Host/static build and 30 core checks + 3 bridge tests passed.
 * Headless Chrome: mobile light/dark rendering, separate partial result fields,
@@ -91,7 +100,9 @@ install the ZIP through KernelSU-Next so the boot service actually runs.
   The verifier compares the installed backend SHA-256 to the built backend.
 * HOME's advertised `pm clear --user <parent> --cache-only <home>` succeeded;
   force-stop/restart of HOME preserved entries and exact routing. This did not
-  clear launcher user data or home layouts. Removing one managed proxy followed
+  clear launcher user data or home layouts. The reported Success and observed
+  MiFavor behavior are not a generic cross-version cache/model rebuild guarantee.
+  Removing one managed proxy followed
   by Reconcile recreated the same identity; an actual icon tap worked again.
 * Remove Cloned removed only clone 1's entry; clone 2 remained visible and
   launchable. Delete Profile removed the second profile's entry. Both disposable
@@ -142,3 +153,32 @@ daemon death, concurrent WebUI/CLI actions, signer collision, and failed
 PackageManager removal. Force-kill during each journal/commit boundary on a
 disposable device. Corrupt/restore a copy of the registry, never production data.
 Check partial results and retained ownership/error evidence after every failure.
+
+## Native-first release gate
+
+`tools/device_release_gate.py` requires two explicitly prepared, module-owned
+clones of the disposable fixture: one in a selected external OEM profile and one
+in a newly module-created CLONE profile. It refuses other packages or unexpected
+ownership. It does not create/adopt/delete the OEM profile. Capture validates
+the selected resources and stores their identity/sandbox evidence locally.
+
+```sh
+python tools/device_release_gate.py --serial <serial> --run --phase capture
+# Install the final ZIP through Next, reboot, then unlock the parent.
+python tools/device_release_gate.py --serial <serial> --run --phase reboot-check
+python tools/device_release_gate.py --serial <serial> --run --phase cleanup
+```
+
+The runner checks exactly three fixture entries and actually taps every icon.
+Identical owner/OEM labels are distinguished by the resulting UID and sandbox
+launch counter, not screen order. It checks no proxy for OEM NATIVE, one distinct
+managed PROXY, three idempotent reconciles, reboot markers, launcher restart,
+reconstruction of a removed owned proxy, scoped native removal, proxy removal,
+fresh fallback creation and profile cleanup. Partial/failed runs remain failed;
+raw JSON is stored in ignored `build/release-device-*.json`.
+
+The final artifact gate is `python tools/release_check.py --sha256 <reviewed-hash>`.
+It checks the exact reviewed ZIP hash, complete file allowlist, packaged/current
+file equality, metadata and absence of private/debug content. Publication must
+also be followed by the real device update test documented in RELEASE_GATE.md;
+a host fixture or unpublished HTTP 404 is not a successful update test.

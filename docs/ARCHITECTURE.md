@@ -8,6 +8,7 @@ flowchart TD
   C --> L[LauncherIntegration]
   L --> G[GenericAndroidAdapter]
   L --> O[REDMAGIC / ZTE adapter]
+  O --> N[Verified native entry: no proxy]
   G --> A[Per-clone proxy APK in parent]
   O --> A
   A --> B[UID-authenticated local broker]
@@ -60,13 +61,25 @@ through `REMOVING`/`DELETING` and can be retried; ownership is retained on failu
 
 ## Launcher states and fallback
 
-`PENDING → INSTALLING_PROXY → PROBING_PROXY → READY_PROXY`, or `FAILED`.
-Removal uses `REMOVED`; external target disappearance marks the clone `MISSING`.
+Modes are `NATIVE` or `PROXY`; an initial failure may remain unassigned.
+`TRANSITIONING_TO_NATIVE → READY_NATIVE` removes the owned proxy before success.
+`PENDING → INSTALLING_PROXY → PROBING_PROXY → READY_PROXY` verifies the fallback.
+Failures remain `FAILED`; removal may retain `PENDING_REMOVAL`. External target
+disappearance marks the clone `MISSING`. Legacy schema-1 proxy records acquire
+their mode during reconciliation without changing identity or signing keys.
+Validation forbids a NATIVE record from retaining a proxy package identity.
 
 Native LauncherApps enumeration is recorded with its user-scoped components but
 does not assert that the OEM launcher renders another profile. Adapter selection
-uses resolved HOME identity. The ZTE adapter inspects observed packages/provider
-presence and uses the same managed fallback without writing OEM data.
+uses resolved HOME identity. NATIVE requires exact rendered-model evidence;
+PROXY requires detected native absence. UNKNOWN never creates a potentially
+duplicate proxy. ZTE-specific read-only model/cache inspection and its reviewed
+APK contract are confined to the adapter (see COMPATIBILITY.md).
+
+Profile classification prioritizes a matching module ownership record; otherwise
+the adapter's runtime profile integration metadata distinguishes EXTERNAL_OEM
+from EXTERNAL_GENERIC. An app record in an external profile never creates a
+profile ownership record or grants profile deletion rights.
 
 The fallback rebuilds **only our own template APK**: package/label strings in the
 binary manifest and the source app's rendered PNG icon with a profile badge. It is signed with AOSP
@@ -100,8 +113,12 @@ activity and launcher query. It restores missing **proxy** packages, never a
 removed user app. The broker starts a registered clone profile if necessary.
 No user is switched globally. Private/locked parent users are not brought forward.
 
-Cleanup uninstalls only the registered proxy from its parent and verifies that
-its activity disappears before deleting target app data or a managed profile.
+Proxy cleanup uninstalls only the registered proxy from its parent and verifies
+that its activity disappears before deleting target data or a managed profile.
+Native cleanup removes the per-user package, then observes HOME for up to 10
+seconds. Incomplete removal retains the ownership record and a partial result;
+manual retry completes it. Reconcile reports pending removal and never recreates
+its entry. No OEM database repair, native-icon insertion or deletion is attempted.
 Other siblings and owner apps retain their identities. Tombstones retain error
 evidence when cleanup cannot complete. The scheduler and broker stop accepting
 actions when module disable/remove markers are present. No boot-time profile
