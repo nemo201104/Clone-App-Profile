@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.nemo.cap.fixture" android:versionCode="1" android:versionName="1">
+  <uses-sdk android:minSdkVersion="31" android:targetSdkVersion="35" />
+  <application android:label="CAP Test Sandbox" android:icon="@drawable/app_icon" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <activity android:name="io.github.nemo.cap.fixture.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+  </application>
+</manifest>

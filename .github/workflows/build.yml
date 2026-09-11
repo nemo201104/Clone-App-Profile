@@ -1,0 +1,31 @@
+name: Build and validate
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: android-actions/setup-android@v3
+      - name: Install build toolchain
+        run: sdkmanager 'platforms;android-35' 'build-tools;36.0.0'
+      - name: Build and validate
+        run: |
+          python3 tools/build.py
+          python3 tools/check.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clone-App-Profile-v1.0.0
+          path: dist/*
+          if-no-files-found: error

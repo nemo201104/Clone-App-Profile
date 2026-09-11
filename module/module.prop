@@ -1,0 +1,7 @@
+id=clone_app_profile
+name=Clone App Profile
+version=v1.0.0
+versionCode=10000
+author=nemo201104
+description=Profile: ?/? | Cloned: 0
+updateJson=https://github.com/nemo201104/Clone-App-Profile/releases/latest/download/update.json

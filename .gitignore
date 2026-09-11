@@ -1,0 +1,9 @@
+.cache/
+build/
+dist/
+__pycache__/
+*.pyc
+.local/
+module/lib/
+module/THIRD_PARTY_NOTICES.txt
+proxy/res/drawable/app_icon.png
