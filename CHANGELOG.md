@@ -2,6 +2,10 @@
 
 ## v1.0.0
 
+* Repository logo, immutable repository-hosted module banner, KernelSU-Next
+  WebUI icon, primary blue `#0E60E2`, English runtime copy and readable light/dark
+  layouts. Destructive actions and their confirmation buttons remain red.
+  Clone artwork/badges, backend/proxy binaries and routing are unchanged.
 * KernelSU-Next module, CLI and responsive WebUI for runtime-gated Android CLONE
   profiles, package management, diagnostics, logs and release update metadata.
 * Atomic, locked and versioned private ownership registry with operation journals

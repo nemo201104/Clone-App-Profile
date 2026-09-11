@@ -9,7 +9,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {'module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'skip_mount',
          'bin/capctl', 'lib/core.jar', 'lib/proxy-template.apk', 'THIRD_PARTY_NOTICES.txt',
-         'webroot/index.html', 'webroot/app.js', 'webroot/bridge.js', 'webroot/style.css'}
+         'webroot/index.html', 'webroot/app.js', 'webroot/bridge.js', 'webroot/style.css', 'webroot/icon.png'}
 
 
 def main():
@@ -35,6 +35,9 @@ def main():
         props = dict(line.split('=', 1) for line in z.read('module.prop').decode().splitlines() if '=' in line)
         assert props['id'] == 'clone_app_profile' and props['version'] == 'v1.0.0' and props['versionCode'] == '10000'
         assert props['updateJson'] == 'https://github.com/nemo201104/Clone-App-Profile/releases/latest/download/update.json'
+        assert props['webuiIcon'] == 'webroot/icon.png'
+        assert re.fullmatch(r'https://raw\.githubusercontent\.com/nemo201104/Clone-App-Profile/(?:[a-f0-9]{40}|v1\.0\.0)/assets/banner\.png', props['banner'])
+        assert z.read(props['webuiIcon']).startswith(b'\x89PNG\r\n\x1a\n')
         with zipfile.ZipFile(ROOT/'module/lib/proxy-template.apk') as apk:
             assert b'io.github.nemo.cap.fixture' not in apk.read('classes.dex')
     print('Reviewed release artifact validated:', artifact.stat().st_size, 'bytes;', digest)

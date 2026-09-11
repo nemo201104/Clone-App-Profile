@@ -6,6 +6,15 @@ launcher entries. Target Android 12–17 (API 31–37); every ROM must pass runt
 capability checks. This repository supplies an installable build and tests, not
 certification for all Android/OEM combinations.
 
+The WebUI uses English copy, the repository's logo and primary color `#0E60E2`
+in light and dark modes. `assets/` is the branding source of truth. The build
+validates both images and encodes `assets/icon.png` into `webroot/icon.png` for
+the WebUI and KernelSU-Next's `webuiIcon`. The supplied icon has JPEG bytes despite
+its filename; conversion preserves every decoded pixel and leaves the source
+unchanged. Proxy icons continue to use each cloned app's artwork/profile badge.
+The module card's remote banner is pinned to the existing asset commit; it is
+not included in the ZIP. See [branding validation](docs/BRANDING.md).
+
 **A clone is complete only when its package, separate sandbox, target launcher
 activity and parent launcher entry are ready.** An installed package with failed
 launcher integration returns `PARTIAL_SUCCESS_LAUNCHER_INTEGRATION_FAILED` and
@@ -86,6 +95,9 @@ Untracked packages are never adopted automatically.
 
 Install JDK 17, Android SDK platform 35 and build-tools 36.0.0, Python 3.10+,
 Node.js 20+ and bash. Set `JAVA_HOME` and `ANDROID_HOME`.
+The build rejects other Java major versions to avoid changing accepted binaries
+through an unnoticed compiler change. Host ImageIO validates/encodes branding;
+no new image-processing dependency or substitute artwork is downloaded.
 
 ```sh
 python tools/build.py

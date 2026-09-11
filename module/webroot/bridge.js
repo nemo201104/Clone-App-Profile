@@ -12,10 +12,10 @@
   }
   async function call(op, ...args) {
     const cmd = '/data/adb/modules/clone_app_profile/bin/capctl ' + command(op, args.map(String));
-    if (!window.ksu || typeof window.ksu.exec !== 'function') throw new Error('Mở WebUI trong KernelSU-Next sau khi cài module.');
+    if (!window.ksu || typeof window.ksu.exec !== 'function') throw new Error('Install the module, then open its WebUI in KernelSU-Next.');
     return new Promise((resolve, reject) => {
       const callback = 'cap_cb_' + crypto.getRandomValues(new Uint32Array(2)).join('_');
-      const timer = setTimeout(() => { delete window[callback]; reject(new Error('Operation chưa phản hồi. Kiểm tra Doctor trước khi thử lại; lệnh trên thiết bị có thể vẫn đang chạy.')); }, 240000);
+      const timer = setTimeout(() => { delete window[callback]; reject(new Error('No response yet. Check Diagnostics before retrying; the operation may still be running on the device.')); }, 240000);
       window[callback] = (code, stdout, stderr) => {
         clearTimeout(timer); delete window[callback];
         try {

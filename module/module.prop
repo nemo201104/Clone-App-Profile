@@ -5,3 +5,5 @@ versionCode=10000
 author=nemo201104
 description=Profile: ?/? | Cloned: 0
 updateJson=https://github.com/nemo201104/Clone-App-Profile/releases/latest/download/update.json
+banner=https://raw.githubusercontent.com/nemo201104/Clone-App-Profile/9f319ca5244d268742348fe868e06fc9a41e1561/assets/banner.png
+webuiIcon=webroot/icon.png

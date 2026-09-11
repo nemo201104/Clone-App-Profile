@@ -19,6 +19,16 @@ resolved HOME/version and actual profile serials for each device run.
 * Native model completeness, exact live-serial joins, hidden sibling rows, stale
   cache, ambiguous identities, legacy mode migration and the NATIVE/proxy
   exclusivity invariant; installed-version update comparison and invalid URLs.
+* English runtime-copy scan (excluding docs/Unicode fixtures/third-party notices),
+  source logo decoding/pixel-preserving PNG conversion, primary token and banner/
+  webuiIcon metadata. ZIP excludes the remotely hosted banner and source assets.
+
+Browser checks cover 320/390/960px in light/dark: visible source logo, exact primary
+blue, text/focus contrast, red destructive confirmations and existing UI flows.
+The separate branding task uses a non-destructive installed-module smoke test
+when rebuilt core/proxy hashes equal the accepted device binaries. Its actual
+Next card/WebUI evidence is recorded in BRANDING.md; browser screenshots alone
+never establish manager banner rendering.
 
 The build is repeated when implementation changes. Unit tests use temporary
 host storage and cannot alter Android users. Generated APKs/fixture/keys are

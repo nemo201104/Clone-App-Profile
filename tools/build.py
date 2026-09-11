@@ -25,6 +25,12 @@ def toolchain():
     suffix = '.exe' if os.name == 'nt' else ''
     java = Path(java_home) / 'bin' / ('java' + suffix) if java_home else Path(shutil.which('java') or 'java')
     javac = Path(java_home) / 'bin' / ('javac' + suffix) if java_home else Path(shutil.which('javac') or 'javac')
+    # Avoid silently rebuilding accepted Android binaries with a different compiler.
+    for executable in (java, javac):
+        version = subprocess.run([str(executable), '-version'], capture_output=True, text=True, check=True)
+        import re
+        if not re.search(r'(?:version\s+"|javac\s+)17(?:\.|\b)', version.stdout + version.stderr):
+            raise SystemExit('JDK 17 is required; set JAVA_HOME to a JDK 17 installation.')
     bt = sdk / 'build-tools/36.0.0'
     platforms = [sdk / 'platforms' / p / 'android.jar' for p in ('android-35', 'android-36', 'android-36.1', 'android-37.0')]
     android = next((p for p in platforms if p.exists()), None)
@@ -64,6 +70,11 @@ def dummy_icon():
 def build():
     java, javac, bt, android, suffix = toolchain()
     BUILD.mkdir(exist_ok=True)
+    for name in ('icon.png', 'banner.png'):
+        if not (ROOT / 'assets' / name).is_file():
+            raise SystemExit('Required branding asset missing: assets/' + name)
+    run([java, '-Djava.awt.headless=true', ROOT / 'tools/Branding.java', ROOT / 'assets/icon.png',
+         ROOT / 'assets/banner.png', ROOT / 'module/webroot/icon.png'])
     libs = ROOT / 'module/lib'
     libs.mkdir(exist_ok=True)
     # Bundle Google's implementation, not a home-grown APK signature scheme.

@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,6 +21,18 @@ def main():
         assert b'\r\n' not in p.read_bytes(), p
     for p in (ROOT / 'module/webroot').glob('*.js'):
         run(['node', '--check', p])
+    # Runtime-owned copy only: app/profile names, historical docs, Unicode test
+    # fixtures and third-party notices are deliberately outside this scan.
+    runtime = list((ROOT/'module/webroot').glob('*.html')) + list((ROOT/'module/webroot').glob('*.js')) + list((ROOT/'module/webroot').glob('*.css'))
+    runtime += list((ROOT/'module').glob('*.sh')) + [ROOT/'module/bin/capctl', ROOT/'module/module.prop']
+    runtime += list((ROOT/'core/src').rglob('*.java')) + list((ROOT/'proxy/src').rglob('*.java'))
+    non_english = re.compile(r'[\u00c0-\u00ff\u0102\u0103\u0110\u0111\u01a0\u01a1\u01af\u01b0\u1ea0-\u1ef9\u4e00-\u9fff]')
+    for path in runtime:
+        assert not non_english.search(path.read_text(encoding='utf-8')), 'Non-English runtime copy: '+str(path)
+    html = (ROOT/'module/webroot/index.html').read_text(encoding='utf-8')
+    assert '<html lang="en">' in html and 'src="icon.png"' in html
+    css = (ROOT/'module/webroot/style.css').read_text(encoding='utf-8')
+    assert css.count('#0E60E2') == 1 and '--color-primary: #0E60E2;' in css
     run(['node', '--test', ROOT / 'tests/bridge.test.cjs'])
     update = json.loads((ROOT / 'update.json').read_text())
     assert set(update) == {'version', 'versionCode', 'zipUrl', 'changelog'}
@@ -48,9 +61,15 @@ def main():
             assert not any(v in p.read_text(encoding='utf-8') for v in ['999', 'com.zte.', 'REDMAGIC', 'Nubia']), p
     with zipfile.ZipFile(ROOT / 'dist/Clone-App-Profile-v1.0.0.zip') as z:
         names = set(z.namelist())
-        for required in ['module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'bin/capctl', 'lib/core.jar', 'lib/proxy-template.apk', 'webroot/index.html']:
+        for required in ['module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'bin/capctl', 'lib/core.jar', 'lib/proxy-template.apk', 'webroot/index.html', 'webroot/icon.png']:
             assert required in names, required
-        assert not any(n.startswith(('module/', '.git/', '.cache/')) for n in names)
+        assert not any(n.startswith(('module/', '.git/', '.cache/', '.local/', 'assets/', 'build/', 'dist/', 'tests/')) for n in names)
+        assert not any(n.endswith('banner.png') for n in names)
+        assert z.read('webroot/icon.png') == (ROOT/'module/webroot/icon.png').read_bytes()
+        assert z.read('webroot/icon.png').startswith(b'\x89PNG\r\n\x1a\n')
+        props = dict(line.split('=', 1) for line in z.read('module.prop').decode().splitlines() if '=' in line)
+        assert props['webuiIcon'] == 'webroot/icon.png' and 'actionIcon' not in props
+        assert re.fullmatch(r'https://raw\.githubusercontent\.com/nemo201104/Clone-App-Profile/(?:[a-f0-9]{40}|v1\.0\.0)/assets/banner\.png', props['banner'])
     print('All host/static/ZIP checks passed.')
 
 if __name__ == '__main__':

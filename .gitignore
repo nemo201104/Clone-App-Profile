@@ -7,3 +7,4 @@ __pycache__/
 module/lib/
 module/THIRD_PARTY_NOTICES.txt
 proxy/res/drawable/app_icon.png
+module/webroot/icon.png

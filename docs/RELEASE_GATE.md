@@ -1,5 +1,11 @@
 # v1.0.0 final release gate
 
+Packaging update: the branding/localization pass supersedes the ZIP hash below.
+See [BRANDING.md](BRANDING.md) for the current artifact and actual manager visual
+checks. Backend/proxy bytes remain identical to this accepted launcher gate;
+the historical functional test evidence below remains unchanged. No release tag
+is created by the branding task.
+
 Date: 2026-09-11. **Pre-publication checks passed; publication authorization and
 the mandatory live post-publication update check are still pending.** No tag or
 release has been created at this checkpoint. This is not a RELEASED declaration.
