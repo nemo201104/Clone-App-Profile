@@ -17,7 +17,8 @@ const server = http.createServer((req, res) => {
   try {
     for (const colorScheme of ['light', 'dark']) for (const width of [320, 390, 960]) {
       const page = await browser.newPage({ viewport: { width, height: 844 }, colorScheme });
-      const errors = []; page.on('pageerror', e => errors.push(e.message));
+      const errors = [], requests = []; page.on('pageerror', e => errors.push(e.message));
+      page.on('request', request => requests.push(request.url()));
       await page.addInitScript(() => {
         const profiles = [
           { userId: 0, serialNumber: 0, name: 'Owner', type: 'android.os.usertype.full.SYSTEM', parentUserId: -1, state: 'RUNNING_UNLOCKED', enabled: true, moduleManaged: false, clonedApps: 0 },
@@ -42,8 +43,13 @@ const server = http.createServer((req, res) => {
       await page.locator('#apps .app').waitFor();
       await page.locator('#busy').waitFor({state:'hidden'});
       assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+      assert.match(await page.locator('.brand-title').innerText(), /Author: nemoforge/);
+      assert.equal(await page.locator('.brand-title .tag').innerText(), 'v1.0.1');
+      assert.equal(await page.locator('footer a').getAttribute('href'), 'https://nemoforge.github.io');
       assert.equal(await page.locator('img.mark').evaluate(img => img.complete && img.naturalWidth === 500 && img.naturalHeight === 500), true, 'source logo loads');
       assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--color-primary').trim()), '#0E60E2');
+      assert(requests.every(url => url.startsWith(`http://127.0.0.1:${server.address().port}/`)), 'WebUI branding makes no Internet requests');
+      assert(!requests.some(url => url.endsWith('/banner.png')), 'Manager reads its local banner outside WebUI networking');
       const logo = await page.locator('.mark').boundingBox(), title = await page.locator('.brand-title').boundingBox();
       assert(logo.x + logo.width <= title.x && title.x + title.width <= width, 'logo and title do not overlap');
       const luminance = color => color.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((s, v, i) => s + v * [.2126, .7152, .0722][i], 0);

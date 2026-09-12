@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark"><title>Clone App Profile</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header><img class="mark" src="icon.png" alt="Clone App Profile logo" width="60" height="60"><div class="brand-title"><h1>Clone App Profile</h1><p>Author: nemo201104 <span class="tag">v1.0.0</span></p></div><button id="refresh" class="icon-button" aria-label="Refresh">↻</button></header>
+  <header><img class="mark" src="icon.png" alt="Clone App Profile logo" width="60" height="60"><div class="brand-title"><h1>Clone App Profile</h1><p>Author: nemoforge <span class="tag">v1.0.1</span></p></div><button id="refresh" class="icon-button" aria-label="Refresh">↻</button></header>
   <main>
     <div id="environment" class="muted">Connecting to KernelSU-Next…</div>
     <section class="metrics" aria-label="Dashboard"><article><span>Profile</span><strong id="profiles-count">—/—</strong><small>All Android users</small></article><article><span>Cloned Apps</span><strong id="clones-count">—</strong><small>Managed by this module</small></article></section>
@@ -25,7 +25,7 @@
     <section id="page-clones" class="page" hidden><div class="section-title"><h2>Cloned Apps</h2><button id="reconcile">Reconcile</button></div><div id="clone-list"></div></section>
     <section id="page-logs" class="page" hidden><div class="section-title"><h2>Operation logs</h2><button id="export">Save Log</button></div><div class="table-wrap"><table><thead><tr><th>Timestamp</th><th>Action</th><th>Package</th><th>Profile/User</th><th>Result</th><th>Message</th></tr></thead><tbody id="log-list"></tbody></table></div></section>
     <section id="result" class="result" aria-live="polite" hidden><h2 id="result-title"></h2><div id="result-fields"></div><details><summary>Operation details</summary><pre id="result-json"></pre></details></section>
-    <footer><button id="update-check">Check for Updates</button><a href="https://nemo.github.io" target="_blank" rel="noopener noreferrer">Support ↗</a><span>Clone App Profile · 1.0.0</span></footer>
+    <footer><button id="update-check">Check for Updates</button><a href="https://nemoforge.github.io" target="_blank" rel="noopener noreferrer">Support ↗</a><span>Clone App Profile · 1.0.1</span></footer>
   </main>
   <div id="busy" class="busy" role="status" hidden><span class="spinner"></span><span id="busy-text">Working…</span></div>
   <dialog id="confirm"><form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><div class="dialog-actions"><button value="cancel">Cancel</button><button id="confirm-yes" value="confirm" class="primary">Confirm</button></div></form></dialog>

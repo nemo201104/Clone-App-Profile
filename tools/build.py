@@ -75,6 +75,10 @@ def build():
             raise SystemExit('Required branding asset missing: assets/' + name)
     run([java, '-Djava.awt.headless=true', ROOT / 'tools/Branding.java', ROOT / 'assets/icon.png',
          ROOT / 'assets/banner.png', ROOT / 'module/webroot/icon.png'])
+    banner = ROOT / 'module/webroot/banner.png'
+    shutil.copyfile(ROOT / 'assets/banner.png', banner)
+    if banner.read_bytes() != (ROOT / 'assets/banner.png').read_bytes():
+        raise SystemExit('Runtime banner differs from assets/banner.png')
     libs = ROOT / 'module/lib'
     libs.mkdir(exist_ok=True)
     # Bundle Google's implementation, not a home-grown APK signature scheme.
@@ -116,7 +120,7 @@ def build():
 def package():
     dist = ROOT / 'dist'
     dist.mkdir(exist_ok=True)
-    dest = dist / 'Clone-App-Profile-v1.0.0.zip'
+    dest = dist / 'Clone-App-Profile-v1.0.1.zip'
     with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for path in sorted((ROOT / 'module').rglob('*')):
             if not path.is_file():

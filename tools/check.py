@@ -28,15 +28,22 @@ def main():
     runtime += list((ROOT/'core/src').rglob('*.java')) + list((ROOT/'proxy/src').rglob('*.java'))
     non_english = re.compile(r'[\u00c0-\u00ff\u0102\u0103\u0110\u0111\u01a0\u01a1\u01af\u01b0\u1ea0-\u1ef9\u4e00-\u9fff]')
     for path in runtime:
-        assert not non_english.search(path.read_text(encoding='utf-8')), 'Non-English runtime copy: '+str(path)
+        text = path.read_text(encoding='utf-8')
+        assert not non_english.search(text), 'Non-English runtime copy: '+str(path)
+        assert not re.search(r'nemo2011|nemo\.github\.io', text, re.I), 'Old runtime identity: '+str(path)
     html = (ROOT/'module/webroot/index.html').read_text(encoding='utf-8')
     assert '<html lang="en">' in html and 'src="icon.png"' in html
+    assert 'Author: nemoforge' in html and '<span class="tag">v1.0.1</span>' in html
+    assert 'href="https://nemoforge.github.io"' in html
+    assert 'banner.png' not in html, 'Manager banner must not add a WebUI network request'
     css = (ROOT/'module/webroot/style.css').read_text(encoding='utf-8')
     assert css.count('#0E60E2') == 1 and '--color-primary: #0E60E2;' in css
     run(['node', '--test', ROOT / 'tests/bridge.test.cjs'])
     update = json.loads((ROOT / 'update.json').read_text())
     assert set(update) == {'version', 'versionCode', 'zipUrl', 'changelog'}
-    assert type(update['versionCode']) is int and update['versionCode'] == 10000
+    assert update['version'] == 'v1.0.1' and type(update['versionCode']) is int and update['versionCode'] == 10001
+    assert update['zipUrl'] == 'https://github.com/nemoforge/Clone-App-Profile/releases/download/v1.0.1/Clone-App-Profile-v1.0.1.zip'
+    assert update['changelog'] == 'https://raw.githubusercontent.com/nemoforge/Clone-App-Profile/v1.0.1/CHANGELOG.md'
     json_jar = ROOT / '.cache/json-20250517.jar'
     if not json_jar.exists():
         json_jar.parent.mkdir(exist_ok=True)
@@ -59,17 +66,23 @@ def main():
     for p in (ROOT / 'core/src').rglob('*.java'):
         if p.name != 'ZteAdapter.java':
             assert not any(v in p.read_text(encoding='utf-8') for v in ['999', 'com.zte.', 'REDMAGIC', 'Nubia']), p
-    with zipfile.ZipFile(ROOT / 'dist/Clone-App-Profile-v1.0.0.zip') as z:
+    with zipfile.ZipFile(ROOT / 'dist/Clone-App-Profile-v1.0.1.zip') as z:
         names = set(z.namelist())
         for required in ['module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'bin/capctl', 'lib/core.jar', 'lib/proxy-template.apk', 'webroot/index.html', 'webroot/icon.png']:
             assert required in names, required
         assert not any(n.startswith(('module/', '.git/', '.cache/', '.local/', 'assets/', 'build/', 'dist/', 'tests/')) for n in names)
-        assert not any(n.endswith('banner.png') for n in names)
+        assert 'webroot/banner.png' in names
+        assert z.read('webroot/banner.png') == (ROOT/'assets/banner.png').read_bytes()
+        assert z.read('webroot/banner.png') == (ROOT/'module/webroot/banner.png').read_bytes()
+        assert z.read('webroot/banner.png').startswith(b'\x89PNG\r\n\x1a\n')
         assert z.read('webroot/icon.png') == (ROOT/'module/webroot/icon.png').read_bytes()
         assert z.read('webroot/icon.png').startswith(b'\x89PNG\r\n\x1a\n')
         props = dict(line.split('=', 1) for line in z.read('module.prop').decode().splitlines() if '=' in line)
+        assert props['name'] == 'Clone App Profile' and props['author'] == 'nemoforge'
+        assert props['version'] == 'v1.0.1' and props['versionCode'] == '10001'
+        assert props['updateJson'] == 'https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json'
         assert props['webuiIcon'] == 'webroot/icon.png' and 'actionIcon' not in props
-        assert re.fullmatch(r'https://raw\.githubusercontent\.com/nemo201104/Clone-App-Profile/(?:[a-f0-9]{40}|v1\.0\.0)/assets/banner\.png', props['banner'])
+        assert props['banner'] == 'webroot/banner.png'
     print('All host/static/ZIP checks passed.')
 
 if __name__ == '__main__':

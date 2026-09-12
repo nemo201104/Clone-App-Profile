@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1
+
+* Changed project author/maintainer identity to nemoforge.
+* Migrated GitHub update and release URLs to the nemoforge account.
+* Updated support URL to https://nemoforge.github.io.
+* Bundled the module banner locally for offline availability.
+
 ## v1.0.0
 
 * Repository logo, immutable repository-hosted module banner, KernelSU-Next

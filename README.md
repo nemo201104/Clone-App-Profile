@@ -1,6 +1,6 @@
 # Clone App Profile
 
-KernelSU-Next module by **nemo201104**, v1.0.0. Manage Android `profile.CLONE`
+KernelSU-Next module by **nemoforge**, v1.0.1. Manage Android `profile.CLONE`
 profiles and app instances with a shared CLI/WebUI, private registry and persistent
 launcher entries. Target Android 12–17 (API 31–37); every ROM must pass runtime
 capability checks. This repository supplies an installable build and tests, not
@@ -12,8 +12,12 @@ validates both images and encodes `assets/icon.png` into `webroot/icon.png` for
 the WebUI and KernelSU-Next's `webuiIcon`. The supplied icon has JPEG bytes despite
 its filename; conversion preserves every decoded pixel and leaves the source
 unchanged. Proxy icons continue to use each cloned app's artwork/profile badge.
-The module card's remote banner is pinned to the existing asset commit; it is
-not included in the ZIP. See [branding validation](docs/BRANDING.md).
+The build copies `assets/banner.png` byte-for-byte into `webroot/banner.png`.
+KernelSU-Next reads `banner=webroot/banner.png` from the local module directory,
+so the module card does not need Internet access for its banner. The source
+contract, device checks and migration limits are recorded in the
+[maintenance report](docs/MAINTENANCE_V1.0.1.md). The earlier
+[branding validation](docs/BRANDING.md) is historical evidence.
 
 **A clone is complete only when its package, separate sandbox, target launcher
 activity and parent launcher entry are ready.** An installed package with failed
@@ -44,7 +48,7 @@ user ID and no fallback to a secondary full user.
   exposed to the root module. SELinux remains enforcing; blocked broker IPC is an
   explicit launcher failure.
 
-Build or download `Clone-App-Profile-v1.0.0.zip`, install it in KernelSU-Next's
+Build or download `Clone-App-Profile-v1.0.1.zip`, install it in KernelSU-Next's
 module page, then reboot. Open the module WebUI, inspect Doctor and Create
 Profile. Select a user app and a target clone profile. Clone App reports package
 and launcher results separately. Installation never creates profiles or clones.
@@ -105,7 +109,7 @@ python tools/check.py
 python tools/build_fixture.py  # optional rooted-device test fixture
 ```
 
-Output: `dist/Clone-App-Profile-v1.0.0.zip` plus SHA-256 and `update.json`.
+Output: `dist/Clone-App-Profile-v1.0.1.zip` plus SHA-256 and `update.json`.
 ZIP entry ordering/timestamps/modes are deterministic for a given toolchain.
 Build does not fetch an SDK, publish anything or contain a release signing key.
 Each device generates its own private proxy signing key on first use. The
@@ -114,9 +118,14 @@ checker downloads a checksum-pinned host-only JSON library from Maven Central.
 GitHub Actions validates and builds artifacts for pushes/PRs. Publishing is a
 separate manually dispatched workflow, disabled unless its publish input is
 selected and its rebuilt ZIP matches the supplied device-reviewed SHA-256.
-Updates use KernelSU-Next's `updateJson` contract and integer
-`versionCode`. Until the first release is actually published, Check Update
-reports metadata unavailable. No GitHub token is embedded.
+Updates use KernelSU-Next's `updateJson` contract and integer `versionCode` at
+`https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json`.
+Install v1.0.1 manually once when migrating from the released v1.0.0: the old
+updater only accepts the former owner's URLs. The new updater accepts the
+canonical repository's release and tagged changelog URLs. Before publication,
+the public endpoint still serves the previous release; controlled metadata
+checks are distinct from the post-publication HTTPS update gate. No GitHub token
+is embedded. The immutable previous release and tag are preserved.
 
 ## Data, recovery and uninstall
 
@@ -142,5 +151,5 @@ Logs export to `/sdcard/Cloned-App-Profile/Logs/log-<Date>-Clone-App-Profile.txt
 Only logs go to public storage. No arbitrary shell API is exposed by the broker.
 
 See [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md) and
-[compatibility](docs/COMPATIBILITY.md). Support: [nemo.github.io](https://nemo.github.io).
+[compatibility](docs/COMPATIBILITY.md). Support: [nemoforge.github.io](https://nemoforge.github.io).
 License: Apache-2.0; Android apksig attribution is included in the built module.

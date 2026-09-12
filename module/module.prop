@@ -1,9 +1,9 @@
 id=clone_app_profile
 name=Clone App Profile
-version=v1.0.0
-versionCode=10000
-author=nemo201104
+version=v1.0.1
+versionCode=10001
+author=nemoforge
 description=Profile: ?/? | Cloned: 0
-updateJson=https://github.com/nemo201104/Clone-App-Profile/releases/latest/download/update.json
-banner=https://raw.githubusercontent.com/nemo201104/Clone-App-Profile/9f319ca5244d268742348fe868e06fc9a41e1561/assets/banner.png
+updateJson=https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json
+banner=webroot/banner.png
 webuiIcon=webroot/icon.png

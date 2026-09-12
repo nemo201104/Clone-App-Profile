@@ -1,7 +1,7 @@
 """Mandatory post-publication update test using the actual installed backend.
 
 Reads the fixed public release endpoint on-device, temporarily sets ONLY the
-installed module.prop versionCode to 9999, and restores the original bytes in
+installed module.prop versionCode to 10000, and restores the original bytes in
 finally. Does not build/upload a lower-version release or mock the network.
 """
 import argparse
@@ -26,8 +26,8 @@ def main():
     # module.prop is public module metadata, never registry or signing material.
     original = d.shell('cat', remote) + '\n'
     assert hashlib.sha256(original.encode()).hexdigest() == d.shell('sha256sum', remote).split()[0], 'Metadata must round-trip exactly before testing'
-    assert re.search(r'^versionCode=10000$', original, re.M)
-    lower, count = re.subn(r'^versionCode=10000$', 'versionCode=9999', original, flags=re.M)
+    assert re.search(r'^versionCode=10001$', original, re.M)
+    lower, count = re.subn(r'^versionCode=10001$', 'versionCode=10000', original, flags=re.M)
     assert count == 1
     d.shell('touch', MODULE+'/disable')
     try:
@@ -52,22 +52,22 @@ def main():
 
         try:
             current = d.core('update-check')['details']
-            assert current['state'] == 'UP_TO_DATE' and current['installedVersionCode'] == 10000
+            assert current['state'] == 'UP_TO_DATE' and current['installedVersionCode'] == 10001
             write_props(lower)
             available = d.core('update-check')['details']
-            assert available['state'] == 'UPDATE_AVAILABLE' and available['installedVersionCode'] == 9999
+            assert available['state'] == 'UPDATE_AVAILABLE' and available['installedVersionCode'] == 10000
             expected = json.loads((ROOT/'update.json').read_text())
             assert current['metadata'] == available['metadata'] == expected
-            assert expected['versionCode'] == 10000 and expected['version'] == 'v1.0.0'
+            assert expected['versionCode'] == 10001 and expected['version'] == 'v1.0.1'
         finally:
             write_props(original)
         restored = d.core('update-check')['details']
-        assert restored['state'] == 'UP_TO_DATE' and restored['installedVersionCode'] == 10000
+        assert restored['state'] == 'UP_TO_DATE' and restored['installedVersionCode'] == 10001
         result = dict(passed=True, current=current, lowerInstalledVersion=available, restored=restored,
-                      endpoint='https://github.com/nemo201104/Clone-App-Profile/releases/latest/download/update.json',
+                      endpoint='https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json',
                       source='Actual installed capctl on-device HTTPS requests; no mock')
         (ROOT/'build/release-update-device.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
-        print('Published update flow passed: 10000 UP_TO_DATE; 9999 UPDATE_AVAILABLE; restored 10000 UP_TO_DATE.')
+        print('Published update flow passed: 10001 UP_TO_DATE; 10000 UPDATE_AVAILABLE; restored 10001 UP_TO_DATE.')
     finally:
         d.shell('rm', '-f', MODULE+'/disable')
         d.script('/system/bin/sh '+MODULE+'/service.sh >> /data/adb/clone_app_profile/release-supervisor.log 2>&1 </dev/null &')
