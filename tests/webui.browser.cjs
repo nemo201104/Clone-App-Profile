@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
       await page.locator('#busy').waitFor({state:'hidden'});
       assert.equal(await page.locator('html').getAttribute('lang'), 'en');
       assert.match(await page.locator('.brand-title').innerText(), /Author: nemoforge/);
-      assert.equal(await page.locator('.brand-title .tag').innerText(), 'v1.0.1');
+      assert.equal(await page.locator('.brand-title .tag').innerText(), 'v1.0.2');
       assert.equal(await page.locator('footer a').getAttribute('href'), 'https://nemoforge.github.io');
       assert.equal(await page.locator('img.mark').evaluate(img => img.complete && img.naturalWidth === 500 && img.naturalHeight === 500), true, 'source logo loads');
       assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--color-primary').trim()), '#0E60E2');

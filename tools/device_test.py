@@ -46,7 +46,7 @@ def main():
     # Never reuse somebody else's installed module or take ownership of existing fixtures.
     assert d.script('if [ -e /data/adb/modules/clone_app_profile/module.prop ]; then echo EXISTS; fi')!='EXISTS','Use an isolated device or uninstall the module first.'
     assert not d.shell('pm','list','packages','-u',FIXTURE),'Fixture already known to PackageManager; inspect manually.'
-    d.adb('push',str(ROOT/'dist/Clone-App-Profile-v1.0.1.zip'),STAGE+'.zip')
+    d.adb('push',str(ROOT/'dist/Clone-App-Profile-v1.0.2.zip'),STAGE+'.zip')
     d.shell('mkdir','-p',STAGE)
     d.shell('/data/adb/ksu/bin/busybox','unzip','-o',STAGE+'.zip','-d',STAGE)
     d.shell('rm','-f',STAGE+'/disable')

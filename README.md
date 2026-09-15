@@ -1,6 +1,6 @@
 # Clone App Profile
 
-KernelSU-Next module by **nemoforge**, v1.0.1. Manage Android `profile.CLONE`
+KernelSU module by **nemoforge**, v1.0.2. Manage Android `profile.CLONE`
 profiles and app instances with a shared CLI/WebUI, private registry and persistent
 launcher entries. Target Android 12–17 (API 31–37); every ROM must pass runtime
 capability checks. This repository supplies an installable build and tests, not
@@ -18,6 +18,10 @@ so the module card does not need Internet access for its banner. The source
 contract, device checks and migration limits are recorded in the
 [maintenance report](docs/MAINTENANCE_V1.0.1.md). The earlier
 [branding validation](docs/BRANDING.md) is historical evidence.
+
+WildKSU device validation for the compatibility patch passed. KernelSU-Next
+compatibility was source-reviewed; dedicated device revalidation is pending.
+See the [WildKSU validation report](docs/WILDKSU-VALIDATION.md).
 
 **A clone is complete only when its package, separate sandbox, target launcher
 activity and parent launcher entry are ready.** An installed package with failed
@@ -40,7 +44,7 @@ user ID and no fallback to a secondary full user.
 
 ## Requirements and installation
 
-* KernelSU-Next with root and WebUI support; Android API 31–37.
+* KernelSU-Next or WildKSU with root and WebUI support; Android API 31–37.
 * A ROM that actually supports `android.os.usertype.profile.CLONE` and has spare
   runtime user/profile capacity. Multiple siblings are supported when creation is
   permitted by that framework.
@@ -48,7 +52,7 @@ user ID and no fallback to a secondary full user.
   exposed to the root module. SELinux remains enforcing; blocked broker IPC is an
   explicit launcher failure.
 
-Build or download `Clone-App-Profile-v1.0.1.zip`, install it in KernelSU-Next's
+Build or download `Clone-App-Profile-v1.0.2.zip`, install it in your root manager's
 module page, then reboot. Open the module WebUI, inspect Doctor and Create
 Profile. Select a user app and a target clone profile. Clone App reports package
 and launcher results separately. Installation never creates profiles or clones.
@@ -109,7 +113,7 @@ python tools/check.py
 python tools/build_fixture.py  # optional rooted-device test fixture
 ```
 
-Output: `dist/Clone-App-Profile-v1.0.1.zip` plus SHA-256 and `update.json`.
+Output: `dist/Clone-App-Profile-v1.0.2.zip` plus SHA-256 and `update.json`.
 ZIP entry ordering/timestamps/modes are deterministic for a given toolchain.
 Build does not fetch an SDK, publish anything or contain a release signing key.
 Each device generates its own private proxy signing key on first use. The
@@ -120,7 +124,7 @@ separate manually dispatched workflow, disabled unless its publish input is
 selected and its rebuilt ZIP matches the supplied device-reviewed SHA-256.
 Updates use KernelSU-Next's `updateJson` contract and integer `versionCode` at
 `https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json`.
-Install v1.0.1 manually once when migrating from the released v1.0.0: the old
+Install v1.0.1 or later manually once when migrating from the released v1.0.0: the old
 updater only accepts the former owner's URLs. The new updater accepts the
 canonical repository's release and tagged changelog URLs. Before publication,
 the public endpoint still serves the previous release; controlled metadata

@@ -36,14 +36,14 @@ public final class HostTests {
         cache.put(Json.obj("component","com.example.app/com.example.app.Main","serial",56,"flags",1028));
         rejects(()->ZteSnapshot.match(nativeRows,cache,"com.example.app",55,live),"ambiguous profile identity fails closed");
         JSONObject update=new JSONObject(new String(Files.readAllBytes(Paths.get(args[0]).getParent().resolve("update.json")),"UTF-8"));
-        check("UP_TO_DATE".equals(UpdateMetadata.evaluate(update,10001).getString("state")),"current release is up to date");
-        check("UPDATE_AVAILABLE".equals(UpdateMetadata.evaluate(update,10000).getString("state")),"previous module version detects maintenance update with the migrated validator");
+        check("UP_TO_DATE".equals(UpdateMetadata.evaluate(update,10002).getString("state")),"current release is up to date");
+        check("UPDATE_AVAILABLE".equals(UpdateMetadata.evaluate(update,10001).getString("state")),"previous module version detects maintenance update with the migrated validator");
         // Historical owner is retained only as a negative migration fixture.
         JSONObject obsolete=new JSONObject(update.toString().replace("nemoforge","nemo201104"));
-        rejects(()->UpdateMetadata.evaluate(obsolete,10001),"old repository owner is not accepted by the migrated updater");
+        rejects(()->UpdateMetadata.evaluate(obsolete,10002),"old repository owner is not accepted by the migrated updater");
         JSONObject hostile=new JSONObject(update.toString()).put("zipUrl",update.getString("zipUrl")+"/../other.zip");
-        rejects(()->UpdateMetadata.evaluate(hostile,10001),"update path traversal rejected");
-        rejects(()->UpdateMetadata.evaluate(new JSONObject(update.toString()).put("versionCode","10001"),10001),"noninteger update version rejected");
+        rejects(()->UpdateMetadata.evaluate(hostile,10002),"update path traversal rejected");
+        rejects(()->UpdateMetadata.evaluate(new JSONObject(update.toString()).put("versionCode","10002"),10002),"noninteger update version rejected");
         Path root=Files.createTempDirectory("cap-host-");
         try(Store s=new Store(root.toFile(),true)) {check(s.data.getJSONArray("clones").length()==0,"initialize");s.data.put("testCounter",0);s.save();}
         JSONObject legacy=Json.obj("packageName","com.example.app","parentSerial",0,"targetSerial",10,"id",id1,"managedByModule",true,"proxyPackage",ProxyApk.PREFIX+id1);
@@ -57,14 +57,24 @@ public final class HostTests {
         try(Store s=new Store(root.toFile(),false)) {
             JSONObject restored=s.data.getJSONArray("clones").getJSONObject(0);
             check(restored.getString("launcherMode").equals("NATIVE") && restored.getString("id").equals(id1),"legacy migration persists mode without changing identity");
+            restored.put("targetSerial",11);
+            rejects(()->{Store.validate(s.data);return null;},"recycled profile serial cannot retain old clone identity");
+            restored.put("targetSerial",10);
             restored.put("launcherMode","BOTH");
             rejects(()->{Store.validate(s.data);return null;},"unknown launcher mode rejected");
             s.data.put("clones",new JSONArray());s.save();
         }
+        try(Store s=new Store(root.toFile(),false)) {
+            s.data.getJSONArray("pending").put(Json.obj("operationId","interrupted-test","kind","clone","targetSerial",10));s.save();
+        }
+        try(Store s=new Store(root.toFile(),false)) {
+            check(s.data.getJSONArray("pending").getJSONObject(0).getString("operationId").equals("interrupted-test"),"interrupted operation remains journaled across reopen");
+            s.data.put("pending",new JSONArray());s.save();
+        }
         Path props=Files.createTempDirectory("cap-update-");
         Files.write(props.resolve("module.prop"),"id=clone_app_profile\nversionCode=10000\n".getBytes("UTF-8"));
         check(UpdateMetadata.installedVersion(props.toFile())==10000,"update comparison reads previous installed module metadata");
-        Files.write(props.resolve("module.prop"),"versionCode=10001x\n".getBytes("UTF-8"));
+        Files.write(props.resolve("module.prop"),"versionCode=10002x\n".getBytes("UTF-8"));
         rejects(()->UpdateMetadata.installedVersion(props.toFile()),"malformed installed version rejected");
         ExecutorService pool=Executors.newFixedThreadPool(4);List<Future<?>> futures=new ArrayList<>();
         for(int i=0;i<4;i++)futures.add(pool.submit(()->{for(int j=0;j<12;j++)try(Store s=new Store(root.toFile(),false)){s.data.put("testCounter",s.data.getInt("testCounter")+1);s.save();}catch(Exception e){throw new RuntimeException(e);}}));

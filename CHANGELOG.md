@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.0.2
+
+Patch release improving WildKSU compatibility.
+
+### Fixes
+
+- Fixed SELinux socket permission handling.
+- Fixed proxy Retry flow.
+- Fixed WebUI reload when multiple clone profiles exist.
+
+### Validation
+
+- WildKSU device validation: PASS
+- Reboot persistence: PASS
+- Launcher restart: PASS
+- Reconciliation: PASS
+- WebUI Clone / Retry / Remove: PASS
+- SELinux: Enforcing
+- Host and bridge tests: PASS
+
+KernelSU-Next compatibility was source-reviewed; dedicated device revalidation is still pending.
+
 ## v1.0.1
 
 * Changed project author/maintainer identity to nemoforge.

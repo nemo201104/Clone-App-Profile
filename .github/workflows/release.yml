@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish v1.0.1 assets after reviewing the device acceptance results
+        description: Publish v1.0.2 assets after reviewing the device acceptance results
         type: boolean
         required: true
         default: false
@@ -41,9 +41,9 @@ jobs:
         run: |
           python3 tools/release_check.py --sha256 "$EXPECTED_SHA256"
           # Never move an existing tag or replace assets on a published release.
-          refs=$(git ls-remote --tags origin refs/tags/v1.0.1)
+          refs=$(git ls-remote --tags origin refs/tags/v1.0.2)
           if [ -n "$refs" ]; then
-            echo 'v1.0.1 already exists; inspect the release instead of overwriting it.' >&2
+            echo 'v1.0.2 already exists; inspect the release instead of overwriting it.' >&2
             exit 1
           fi
-          gh release create v1.0.1 dist/Clone-App-Profile-v1.0.1.zip dist/Clone-App-Profile-v1.0.1.zip.sha256 dist/update.json --target "$GITHUB_SHA" --title 'Clone App Profile v1.0.1' --notes-file CHANGELOG.md
+          gh release create v1.0.2 dist/Clone-App-Profile-v1.0.2.zip dist/Clone-App-Profile-v1.0.2.zip.sha256 dist/update.json --target "$GITHUB_SHA" --title 'Clone App Profile v1.0.2' --notes-file CHANGELOG.md

@@ -33,7 +33,7 @@ public final class Core {
         JSONArray clones=s.data.getJSONArray("clones");for(int i=0;i<clones.length();i++)if(!"MISSING".equals(clones.getJSONObject(i).optString("state")) && !clones.getJSONObject(i).optBoolean("packageRemoved"))count++;
         return Json.obj("used",all.length(),"max",max,"cloned",count,"description","Profile: "+all.length()+"/"+max+" | Cloned: "+count,
             "android",Build.VERSION.RELEASE,"sdk",Build.VERSION.SDK_INT,"currentUser",current,"cloneSupport",p.support(current),
-            "profiles",all,"pending",s.data.getJSONArray("pending"),"kernelSU",new File("/data/adb/ksu").isDirectory(),"moduleVersion","v1.0.1");
+            "profiles",all,"pending",s.data.getJSONArray("pending"),"kernelSU",new File("/data/adb/ksu").isDirectory(),"moduleVersion","v1.0.2");
     }
     private void metadata() throws Exception {
         JSONObject st=status();File prop=new File(module,"module.prop");String text=Store.read(prop);
@@ -321,7 +321,7 @@ public final class Core {
             Failure.require(argv.length>=2,"INVALID_ARGUMENT","Internal module path and command required");
             File module=new File(argv[0]).getCanonicalFile();String[] args=Arrays.copyOfRange(argv,1,argv.length);
             Failure.require(new File(module,"module.prop").isFile(),"MODULE_NOT_FOUND","Module directory missing");
-            if(args[0].equals("version"))System.out.println(Json.obj("success",true,"errorCode","SUCCESS","message","v1.0.1","details",Json.obj("version","v1.0.1","versionCode",10001),"operationId",op));
+            if(args[0].equals("version"))System.out.println(Json.obj("success",true,"errorCode","SUCCESS","message","v1.0.2","details",Json.obj("version","v1.0.2","versionCode",10002),"operationId",op));
             else if(args[0].equals("doctor") && !new File(DATA,"registry.json").exists()) {
                 AndroidPlatform p=new AndroidPlatform();
                 System.out.println(Json.obj("success",true,"errorCode","SUCCESS","message","Read-only preinstall diagnostics","operationId",op,

@@ -120,7 +120,7 @@ def build():
 def package():
     dist = ROOT / 'dist'
     dist.mkdir(exist_ok=True)
-    dest = dist / 'Clone-App-Profile-v1.0.1.zip'
+    dest = dist / 'Clone-App-Profile-v1.0.2.zip'
     with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for path in sorted((ROOT / 'module').rglob('*')):
             if not path.is_file():

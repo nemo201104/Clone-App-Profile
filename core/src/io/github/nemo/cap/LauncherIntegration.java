@@ -134,7 +134,11 @@ public final class LauncherIntegration {
                 c.put("probeNonce",nonce).put("probeStarted",System.currentTimeMillis()).put("launcherEntryState","PROBING_PROXY");store.save();
                 File proofs=new File(store.dir,"probes");Files.createDirectories(proofs.toPath());File proof=new File(proofs,nonce+".json");
                 platform.requireAm("start ");
-                AndroidPlatform.run(20,"/system/bin/am","start","--user",Integer.toString(parent),"-W","-n",pkg+"/"+ProxyApk.ACTIVITY,"--es","cap_probe",nonce);
+                // A failed probe may leave its dialog on top. Android can reuse
+                // that Activity without onCreate, leaving the new nonce unsent.
+                // Restart only this verified module-owned proxy in its parent.
+                platform.requireAm("-S");
+                AndroidPlatform.run(20,"/system/bin/am","start","-S","--user",Integer.toString(parent),"-W","-n",pkg+"/"+ProxyApk.ACTIVITY,"--es","cap_probe",nonce);
                 long until=System.nanoTime()+12_000_000_000L;
                 while(!proof.exists() && System.nanoTime()<until)Thread.sleep(150);
                 Failure.require(proof.exists(),"PROXY_TRANSPORT_FAILED","Proxy could not authenticate to root broker; inspect SELinux and service logs");

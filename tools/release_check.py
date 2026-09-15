@@ -7,7 +7,7 @@ import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = {'module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'skip_mount',
+FILES = {'module.prop', 'customize.sh', 'service.sh', 'uninstall.sh', 'skip_mount', 'sepolicy.rule',
          'bin/capctl', 'lib/core.jar', 'lib/proxy-template.apk', 'THIRD_PARTY_NOTICES.txt',
          'webroot/index.html', 'webroot/app.js', 'webroot/bridge.js', 'webroot/style.css', 'webroot/icon.png', 'webroot/banner.png'}
 
@@ -17,15 +17,15 @@ def main():
     parser.add_argument('--sha256', required=True)
     args = parser.parse_args()
     assert re.fullmatch('[a-f0-9]{64}', args.sha256), 'Expected a reviewed SHA-256'
-    artifact = ROOT/'dist/Clone-App-Profile-v1.0.1.zip'
+    artifact = ROOT/'dist/Clone-App-Profile-v1.0.2.zip'
     digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
     assert digest == args.sha256, 'Build differs from the device-reviewed artifact; do not publish'
     assert artifact.with_suffix('.zip.sha256').read_text().strip() == digest+'  '+artifact.name
     update = json.loads((ROOT/'dist/update.json').read_text())
     assert update == json.loads((ROOT/'update.json').read_text())
-    assert update['version'] == 'v1.0.1' and type(update['versionCode']) is int and update['versionCode'] == 10001
-    assert update['zipUrl'] == 'https://github.com/nemoforge/Clone-App-Profile/releases/download/v1.0.1/Clone-App-Profile-v1.0.1.zip'
-    assert update['changelog'] == 'https://raw.githubusercontent.com/nemoforge/Clone-App-Profile/v1.0.1/CHANGELOG.md'
+    assert update['version'] == 'v1.0.2' and type(update['versionCode']) is int and update['versionCode'] == 10002
+    assert update['zipUrl'] == 'https://github.com/nemoforge/Clone-App-Profile/releases/download/v1.0.2/Clone-App-Profile-v1.0.2.zip'
+    assert update['changelog'] == 'https://raw.githubusercontent.com/nemoforge/Clone-App-Profile/v1.0.2/CHANGELOG.md'
     with zipfile.ZipFile(artifact) as z:
         assert len(z.namelist()) == len(FILES) and set(z.namelist()) == FILES, z.namelist()
         for name in FILES:
@@ -35,7 +35,7 @@ def main():
                 assert token not in data, 'Private/debug content: '+name
             assert not re.search(rb'[A-Z]:[\\/](?:Users|Code)[\\/]', data), 'Local workspace path: '+name
         props = dict(line.split('=', 1) for line in z.read('module.prop').decode().splitlines() if '=' in line)
-        assert props['id'] == 'clone_app_profile' and props['version'] == 'v1.0.1' and props['versionCode'] == '10001'
+        assert props['id'] == 'clone_app_profile' and props['version'] == 'v1.0.2' and props['versionCode'] == '10002'
         assert props['name'] == 'Clone App Profile' and props['author'] == 'nemoforge'
         assert props['updateJson'] == 'https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json'
         assert props['webuiIcon'] == 'webroot/icon.png'

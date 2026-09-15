@@ -1,7 +1,7 @@
 id=clone_app_profile
 name=Clone App Profile
-version=v1.0.1
-versionCode=10001
+version=v1.0.2
+versionCode=10002
 author=nemoforge
 description=Profile: ?/? | Cloned: 0
 updateJson=https://github.com/nemoforge/Clone-App-Profile/releases/latest/download/update.json

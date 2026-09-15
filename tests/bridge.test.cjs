@@ -22,3 +22,27 @@ test('launcher failure remains partial even with nonzero backend exit', async ()
   assert.equal(result.success, false);
   assert.equal(result.details.packageCloned, 'Success');
 });
+
+test('missing manager bridge fails before invoking any command', async () => {
+  context.window.ksu = undefined;
+  await assert.rejects(call('doctor'), /KernelSU/);
+});
+
+test('missing binary and permission failures cannot be reported as success', async () => {
+  for (const [exit, stderr] of [[127, 'capctl: not found'], [126, 'Permission denied']]) {
+    context.window.ksu = { exec(cmd, options, cb) { context.window[cb](exit, '', stderr); } };
+    await assert.rejects(call('doctor'));
+  }
+});
+
+test('framework permission failure retains backend error and operation identity', async () => {
+  const response = { success:false, errorCode:'FRAMEWORK_API_FAILED', message:'Permission denied', details:{}, operationId:'permission-test' };
+  context.window.ksu = { exec(cmd, options, cb) { context.window[cb](1, JSON.stringify(response), ''); } };
+  assert.equal((await call('doctor')).operationId, 'permission-test');
+  assert.equal((await call('doctor')).errorCode, 'FRAMEWORK_API_FAILED');
+});
+
+test('a contradictory nonzero success response is rejected', async () => {
+  context.window.ksu = { exec(cmd, options, cb) { context.window[cb](1, JSON.stringify({success:true, errorCode:'SUCCESS'}), ''); } };
+  await assert.rejects(call('doctor'), /Backend exit code conflicts with response/);
+});

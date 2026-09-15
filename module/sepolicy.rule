@@ -1,0 +1,6 @@
+# The generated targetSdk 35 proxy runs as untrusted_app. WildKSU 3.1.2
+# does not provide Next's domain-to-su socket grant. Permit only connection;
+# Broker still authenticates peer UID, one package, signing certificate and
+# live parent/profile serials before accepting its fixed PROBE/LAUNCH verbs.
+# This grants no shell, file, Binder, socket read/write or permissive access.
+allow untrusted_app su unix_stream_socket connectto

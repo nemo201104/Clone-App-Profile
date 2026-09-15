@@ -39,7 +39,7 @@ def main():
     with zipfile.ZipFile(probe, 'w') as z:
         z.write(dex/'classes.dex', 'classes.dex')
     expected = json.loads((ROOT/'update.json').read_text())
-    assert expected['version'] == 'v1.0.1' and expected['versionCode'] == 10001
+    assert expected['version'] == 'v1.0.2' and expected['versionCode'] == 10002
     d = Device(args.serial, MODULE)
     d.shell('mkdir', '-p', STAGE)
     d.shell('chown', '2000:2000', STAGE)
@@ -63,8 +63,8 @@ def main():
     assert not d.script('for flag in disable remove; do if [ -e '+MODULE+'/$flag ]; then echo $flag; fi; done'), 'Module must be enabled'
     original = d.shell('cat', MODULE+'/module.prop')+'\n'
     assert hashlib.sha256(original.encode()).hexdigest() == d.shell('sha256sum', MODULE+'/module.prop').split()[0]
-    assert re.search(r'^versionCode=10001$', original, re.M)
-    lower, count = re.subn(r'^versionCode=10001$', 'versionCode=10000', original, flags=re.M)
+    assert re.search(r'^versionCode=10002$', original, re.M)
+    lower, count = re.subn(r'^versionCode=10002$', 'versionCode=10001', original, flags=re.M)
     assert count == 1
 
     def write_props(text):
@@ -92,14 +92,14 @@ def main():
         finally:
             write_props(original)
         restored = evaluate()
-        for result, code, state in [(current,10001,'UP_TO_DATE'), (previous,10000,'UPDATE_AVAILABLE'), (restored,10001,'UP_TO_DATE')]:
+        for result, code, state in [(current,10002,'UP_TO_DATE'), (previous,10001,'UPDATE_AVAILABLE'), (restored,10002,'UP_TO_DATE')]:
             assert result['success'] and result['endpoint'] == ENDPOINT
             assert result['details']['installedVersionCode'] == code and result['details']['state'] == state
             assert result['details']['metadata'] == expected
         report = dict(passed=True, mode='CONTROLLED_METADATA_NO_NETWORK', current=current, previousVersion=previous, restored=restored,
                       limitation='One-time manual migration is required; public HTTPS verification remains a post-publication gate.')
         (BUILD/'maintenance-update-device.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
-        print('Controlled device metadata checks passed: 10000 UPDATE_AVAILABLE; 10001/restored UP_TO_DATE. No public release was created.')
+        print('Controlled device metadata checks passed: 10001 UPDATE_AVAILABLE; 10002/restored UP_TO_DATE. No public release was created.')
     finally:
         d.shell('rm', '-f', MODULE+'/disable')
         d.script('/system/bin/sh '+MODULE+'/service.sh >> /data/adb/clone_app_profile/maintenance-supervisor.log 2>&1 </dev/null &')

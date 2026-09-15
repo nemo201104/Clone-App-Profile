@@ -98,7 +98,11 @@ public final class AndroidPlatform {
         Failure.require(amHelp.contains(flag),"COMMAND_UNSUPPORTED","am lacks "+flag);
     }
     public void startProfile(int id,long serial) throws Exception {
-        identity(id,serial); requireAm("start-user");
+        JSONObject current=identity(id,serial);
+        // Re-starting an unlocked sibling can change the ROM's active resources
+        // and recreate foreground activities. Keep identity validation first.
+        if(current.getBoolean("running") && current.getBoolean("unlocked"))return;
+        requireAm("start-user");
         run(45,"/system/bin/am","start-user","-w",Integer.toString(id));
         long until=System.nanoTime()+30_000_000_000L;
         do {
